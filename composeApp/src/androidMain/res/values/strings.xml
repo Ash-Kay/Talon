@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Talon</string>
+    <string name="accessibility_service_description">Talon uses this service to read the screen layout and perform actions like clicking, scrolling, and typing on your behalf.</string>
 </resources>

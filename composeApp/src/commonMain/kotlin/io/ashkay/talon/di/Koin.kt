@@ -2,6 +2,6 @@ package io.ashkay.talon.di
 
 import org.koin.core.module.Module
 
-expect fun uiTreeProviderModule(): Module
+expect fun deviceControllerModule(): Module
 
-fun getSharedModules() = listOf(uiTreeProviderModule())
+fun getSharedModules() = listOf(deviceControllerModule())

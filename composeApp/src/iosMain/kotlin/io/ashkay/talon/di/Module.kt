@@ -1,7 +1,6 @@
 package io.ashkay.talon.di
 
 import org.koin.core.module.Module
+import org.koin.dsl.module
 
-actual fun uiTreeProviderModule(): Module {
-  TODO("Not yet implemented")
-}
+actual fun deviceControllerModule(): Module = module {}
