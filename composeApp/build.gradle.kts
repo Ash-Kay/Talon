@@ -36,6 +36,9 @@ kotlin {
       implementation(libs.napier)
 
       implementation(libs.koog)
+
+      implementation(libs.koin.core)
+      implementation(libs.koin.compose.viewmodel)
     }
     commonTest.dependencies { implementation(libs.kotlin.test) }
   }
