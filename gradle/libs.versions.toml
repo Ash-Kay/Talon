@@ -16,6 +16,7 @@ material3 = "1.10.0-alpha05"
 spotless = "8.2.1"
 ktfmt = "0.61"
 napier = "2.7.1"
+koog = "0.6.2"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -37,6 +38,7 @@ compose-components-resources = { module = "org.jetbrains.compose.components:comp
 compose-uiToolingPreview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "composeMultiplatform" }
 ktfmt = { module = "com.facebook:ktfmt", version.ref = "ktfmt" }
 napier = { module = "io.github.aakira:napier", version.ref = "napier" }
+koog = { module = "ai.koog:koog-agents", version.ref = "koog" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
