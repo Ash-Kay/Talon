@@ -1,6 +1,7 @@
 package io.ashkay.talon.platform
 
 import android.content.Context
+import android.content.Intent
 import io.ashkay.talon.accessibility.TalonAccessibilityService
 import io.ashkay.talon.accessibility.commands.InstalledAppsHandler
 import io.ashkay.talon.model.AgentCommand
@@ -10,7 +11,7 @@ import io.github.aakira.napier.Napier
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-class AndroidDeviceController(context: Context) : DeviceController {
+class AndroidDeviceController(private val context: Context) : DeviceController {
 
   private val installedAppsHandler = InstalledAppsHandler(context)
 
@@ -34,6 +35,25 @@ class AndroidDeviceController(context: Context) : DeviceController {
     withContext(Dispatchers.IO) {
       Napier.d(tag = TAG) { "Requesting installed apps" }
       installedAppsHandler.getInstalledApps()
+    }
+
+  override suspend fun launchApp(packageName: String): Boolean =
+    withContext(Dispatchers.Main) {
+      Napier.d(tag = TAG) { "Launching app: $packageName" }
+      try {
+        val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName)
+        if (launchIntent != null) {
+          launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+          context.startActivity(launchIntent)
+          true
+        } else {
+          Napier.w(tag = TAG) { "No launch intent for $packageName" }
+          false
+        }
+      } catch (e: Exception) {
+        Napier.e(tag = TAG, throwable = e) { "Failed to launch $packageName" }
+        false
+      }
     }
 
   companion object {

@@ -10,6 +10,8 @@ sealed class AgentCommand {
   data class Type(val nodeIndex: Int, val text: String) : AgentCommand()
 
   data object GetInstalledApps : AgentCommand()
+
+  data class LaunchApp(val packageName: String) : AgentCommand()
 }
 
 enum class ScrollDirection {

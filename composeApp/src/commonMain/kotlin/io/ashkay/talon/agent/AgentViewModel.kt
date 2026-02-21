@@ -4,7 +4,7 @@ import ai.koog.agents.core.agent.AIAgent
 import ai.koog.prompt.executor.clients.google.GoogleModels
 import ai.koog.prompt.executor.llms.all.simpleGoogleAIExecutor
 import androidx.lifecycle.ViewModel
-import io.ashkay.talon.model.AgentCommand
+import io.ashkay.talon.agent.tools.TalonToolRegistry
 import io.ashkay.talon.model.toPromptString
 import io.ashkay.talon.platform.DeviceController
 import io.github.aakira.napier.Napier
@@ -32,7 +32,7 @@ class AgentViewModel(private val deviceController: DeviceController) :
       return@intent
     }
     val prompt = tree.toPromptString()
-    Napier.d(tag = TAG) { "UI tree captured:\n$prompt" }
+    Napier.d(tag = TAG) { "UI tree captured" }
     reduce { state.copy(uiTreeSnapshot = prompt) }
     appendLog("UI tree captured (${tree.children.size} top-level children)")
   }
@@ -48,49 +48,25 @@ class AgentViewModel(private val deviceController: DeviceController) :
     appendLog("Goal: $goal")
 
     try {
-      appendLog("Capturing screen...")
-      val tree = deviceController.getUiTree()
-      if (tree == null) {
-        Napier.w(tag = TAG) { "UI tree unavailable" }
-        reduce { state.copy(status = AgentStatus.Error("UI tree unavailable")) }
-        appendLog("Error: UI tree is null")
-        postSideEffect(AgentSideEffect.StopForegroundService)
-        return@intent
-      }
-
-      val nodeTree = tree.toPromptString()
-      reduce { state.copy(uiTreeSnapshot = nodeTree) }
-      appendLog("Screen captured, sending to AI...")
+      val toolRegistry = TalonToolRegistry.create(deviceController)
 
       val agent =
         AIAgent(
           promptExecutor = simpleGoogleAIExecutor(apiKey),
           llmModel = GoogleModels.Gemini2_5Flash,
+          systemPrompt = SYSTEM_PROMPT,
+          toolRegistry = toolRegistry,
+          strategy = talonAgentStrategy,
+          maxIterations = MAX_AGENT_ITERATIONS,
         )
 
-      val prompt = buildAgentPrompt(goal, nodeTree)
-      Napier.d(tag = TAG) { "Agent prompt:\n$prompt" }
+      appendLog("Agent started...")
+      Napier.d(tag = TAG) { "Agent created with toolRegistry" }
 
-      val result = agent.run(prompt)
-      Napier.i(tag = TAG) { "Agent response: $result" }
-      appendLog("AI response: $result")
+      val result = agent.run(goal)
 
-      val command = parseAgentResponse(result)
-      if (command != null) {
-        appendLog("Executing: $command")
-        if (command is AgentCommand.GetInstalledApps) {
-          val apps = deviceController.getInstalledApps()
-          appendLog("Found ${apps.size} installed apps")
-          Napier.d(tag = TAG) { apps.toPromptString() }
-        } else {
-          val success = deviceController.execute(command)
-          appendLog(if (success) "Command executed successfully" else "Command execution failed")
-          Napier.d(tag = TAG) { "Command $command result: $success" }
-        }
-      } else {
-        appendLog("No actionable command parsed from response")
-      }
-
+      Napier.i(tag = TAG) { "Agent completed: $result" }
+      appendLog("Agent completed: $result")
       reduce { state.copy(status = AgentStatus.Success(result)) }
       postSideEffect(AgentSideEffect.StopForegroundService)
     } catch (e: Exception) {
@@ -106,61 +82,6 @@ class AgentViewModel(private val deviceController: DeviceController) :
     postSideEffect(AgentSideEffect.OpenAccessibilitySettings)
   }
 
-  private fun buildAgentPrompt(goal: String, uiTree: String): String =
-    """
-    |You are a mobile device agent. The user wants: "$goal"
-    |
-    |Here is the current screen's UI tree. Each node has an index number in parentheses.
-    |Nodes marked [clickable] can be clicked, [scrollable] can be scrolled, [editable] can receive text.
-    |
-    |<UITree>
-    |$uiTree
-    |</UITree>
-    |
-    |Respond with EXACTLY ONE action in this format:
-    |CLICK <index>
-    |TYPE <index> <text>
-    |SCROLL <index> UP|DOWN|LEFT|RIGHT
-    |BACK
-    |APP_LIST
-    |
-    |Use APP_LIST to get a list of installed apps on the device.
-    |Return ONLY the action line, nothing else.
-    """
-      .trimMargin()
-
-  private fun parseAgentResponse(response: String): AgentCommand? {
-    val trimmed = response.trim()
-    return when {
-      trimmed.startsWith("CLICK") -> {
-        val index = trimmed.removePrefix("CLICK").trim().toIntOrNull()
-        index?.let { AgentCommand.Click(it) }
-      }
-      trimmed.startsWith("TYPE") -> {
-        val parts = trimmed.removePrefix("TYPE").trim().split(" ", limit = 2)
-        val index = parts.getOrNull(0)?.toIntOrNull()
-        val text = parts.getOrNull(1)
-        if (index != null && text != null) AgentCommand.Type(index, text) else null
-      }
-      trimmed.startsWith("SCROLL") -> {
-        val parts = trimmed.removePrefix("SCROLL").trim().split(" ")
-        val index = parts.getOrNull(0)?.toIntOrNull()
-        val dir =
-          when (parts.getOrNull(1)?.uppercase()) {
-            "UP" -> io.ashkay.talon.model.ScrollDirection.UP
-            "DOWN" -> io.ashkay.talon.model.ScrollDirection.DOWN
-            "LEFT" -> io.ashkay.talon.model.ScrollDirection.LEFT
-            "RIGHT" -> io.ashkay.talon.model.ScrollDirection.RIGHT
-            else -> null
-          }
-        if (index != null && dir != null) AgentCommand.Scroll(index, dir) else null
-      }
-      trimmed == "BACK" -> AgentCommand.GoBack
-      trimmed == "APP_LIST" -> AgentCommand.GetInstalledApps
-      else -> null
-    }
-  }
-
   private fun appendLog(entry: String) = intent {
     Napier.d(tag = TAG) { "Log: $entry" }
     reduce { state.copy(logs = state.logs + entry) }
@@ -168,5 +89,23 @@ class AgentViewModel(private val deviceController: DeviceController) :
 
   companion object {
     private const val TAG = "AgentViewModel"
+    private const val MAX_AGENT_ITERATIONS = 30
+
+    private const val SYSTEM_PROMPT =
+      """You are Talon, an autonomous mobile device agent. You control an Android phone by using tools.
+
+WORKFLOW:
+1. First understand the user's goal.
+2. If you need to open an app, use get_installed_apps to find the package name, then launch_app to open it.
+3. After any navigation action (launch, click, back, scroll), ALWAYS call get_screen to see the updated UI.
+4. Use the node indices from get_screen to interact with elements via click, type_text, or scroll.
+5. Continue step by step until the user's goal is fully completed.
+
+RULES:
+- ALWAYS call get_screen before clicking, typing, or scrolling so you have fresh node indices.
+- After launching an app, wait and then call get_screen.
+- If a click didn't change the screen, try scrolling to find the target element.
+- If you are stuck, try go_back and re-approach.
+- When the task is complete, respond with a summary of what you did."""
   }
 }

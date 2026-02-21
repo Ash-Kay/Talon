@@ -16,4 +16,8 @@ interface AppListProvider {
   suspend fun getInstalledApps(): List<AppInfo>
 }
 
-interface DeviceController : UiTreeProvider, CommandExecutor, AppListProvider
+interface AppLauncher {
+  suspend fun launchApp(packageName: String): Boolean
+}
+
+interface DeviceController : UiTreeProvider, CommandExecutor, AppListProvider, AppLauncher

@@ -66,6 +66,10 @@ class TalonAccessibilityService : AccessibilityService() {
         Napier.d(tag = TAG) { "GetInstalledApps handled at controller level" }
         true
       }
+      is AgentCommand.LaunchApp -> {
+        Napier.d(tag = TAG) { "LaunchApp handled at controller level" }
+        true
+      }
     }
   }
 
