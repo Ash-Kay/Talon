@@ -39,6 +39,10 @@ kotlin {
 
       implementation(libs.koin.core)
       implementation(libs.koin.compose.viewmodel)
+
+      implementation(libs.orbit.core)
+      implementation(libs.orbit.viewmodel)
+      implementation(libs.orbit.compose)
     }
     commonTest.dependencies { implementation(libs.kotlin.test) }
   }

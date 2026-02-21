@@ -17,7 +17,8 @@ spotless = "8.2.1"
 ktfmt = "0.61"
 napier = "2.7.1"
 koog = "0.6.2"
-koin = "4.1.0"
+koin = "4.1.1"
+orbit = "11.0.0"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -42,6 +43,9 @@ napier = { module = "io.github.aakira:napier", version.ref = "napier" }
 koog = { module = "ai.koog:koog-agents", version.ref = "koog" }
 koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel", version.ref = "koin" }
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
+orbit-core = { module = "org.orbit-mvi:orbit-core", version.ref = "orbit" }
+orbit-viewmodel = { module = "org.orbit-mvi:orbit-viewmodel", version.ref = "orbit" }
+orbit-compose = { module = "org.orbit-mvi:orbit-compose", version.ref = "orbit" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
