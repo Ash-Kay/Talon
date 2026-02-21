@@ -1,78 +1,182 @@
 package io.ashkay.talon
 
-import ai.koog.agents.core.agent.AIAgent
-import ai.koog.prompt.executor.clients.google.GoogleModels
-import ai.koog.prompt.executor.llms.all.simpleGoogleAIExecutor
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContentPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import io.ashkay.talon.model.AgentCommand
-import io.ashkay.talon.model.toPromptString
-import io.ashkay.talon.platform.DeviceController
-import kotlinx.coroutines.launch
-import org.koin.compose.koinInject
+import androidx.compose.ui.unit.dp
+import io.ashkay.talon.agent.AgentSideEffect
+import io.ashkay.talon.agent.AgentState
+import io.ashkay.talon.agent.AgentStatus
+import io.ashkay.talon.agent.AgentViewModel
+import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.viewmodel.koinViewModel
+import org.orbitmvi.orbit.compose.collectAsState
+import org.orbitmvi.orbit.compose.collectSideEffect
+import talon.composeapp.generated.resources.Res
+import talon.composeapp.generated.resources.btn_get_ui_tree
+import talon.composeapp.generated.resources.btn_open_accessibility_settings
+import talon.composeapp.generated.resources.btn_run_agent
+import talon.composeapp.generated.resources.hint_enter_goal
+import talon.composeapp.generated.resources.label_accessibility_not_enabled
+import talon.composeapp.generated.resources.label_agent_error
+import talon.composeapp.generated.resources.label_agent_idle
+import talon.composeapp.generated.resources.label_agent_running
+import talon.composeapp.generated.resources.label_agent_success
+import talon.composeapp.generated.resources.label_log_empty
 
 @Composable
-@Preview
-fun App() {
-  val deviceController = koinInject<DeviceController>()
-  MaterialTheme {
-    Column(
-      modifier =
-        Modifier.background(MaterialTheme.colorScheme.primaryContainer)
-          .safeContentPadding()
-          .fillMaxSize(),
-      horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-      val scope = rememberCoroutineScope()
-      Button(
-        onClick = {
-          scope.launch {
-            val uiTree = deviceController.getUiTree()
-            val promptTree = uiTree?.toPromptString()
-            println(promptTree)
+fun App(
+  onOpenAccessibilitySettings: () -> Unit = {},
+  isAccessibilityEnabled: Boolean = false,
+  viewModel: AgentViewModel = koinViewModel(),
+) {
+  val state by viewModel.collectAsState()
 
-            deviceController.executeCommand(AgentCommand.Click(nodeIndex = 15))
-          }
-        }
+  LaunchedEffect(isAccessibilityEnabled) {
+    viewModel.refreshAccessibilityStatus(isAccessibilityEnabled)
+  }
+
+  viewModel.collectSideEffect { sideEffect ->
+    when (sideEffect) {
+      is AgentSideEffect.OpenAccessibilitySettings -> onOpenAccessibilitySettings()
+      is AgentSideEffect.ShowToast -> {}
+    }
+  }
+
+  MaterialTheme { AgentScreen(state = state, viewModel = viewModel) }
+}
+
+@Composable
+private fun AgentScreen(state: AgentState, viewModel: AgentViewModel) {
+  var goal by rememberSaveable { mutableStateOf("") }
+
+  Column(
+    modifier =
+      Modifier.background(MaterialTheme.colorScheme.background)
+        .safeContentPadding()
+        .fillMaxSize()
+        .padding(16.dp),
+    horizontalAlignment = Alignment.CenterHorizontally,
+  ) {
+    StatusBanner(state)
+    Spacer(Modifier.height(12.dp))
+
+    if (!state.isAccessibilityEnabled) {
+      AccessibilityPrompt(viewModel)
+    }
+
+    OutlinedTextField(
+      value = goal,
+      onValueChange = { goal = it },
+      label = { Text(stringResource(Res.string.hint_enter_goal)) },
+      modifier = Modifier.fillMaxWidth(),
+      singleLine = true,
+    )
+
+    Spacer(Modifier.height(12.dp))
+
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+      Button(
+        onClick = { viewModel.captureUiTree() },
+        enabled = state.isAccessibilityEnabled && state.status !is AgentStatus.Running,
       ) {
-        Text("Get UI Tree")
+        Text(stringResource(Res.string.btn_get_ui_tree))
       }
-      Button(onClick = { scope.launch { runAgent(deviceController) } }) { Text("Run agent") }
-      Button(onClick = { println("AGENT CLICK") }) { Text("Agent Click here!") }
+      Button(
+        onClick = { viewModel.runAgent(goal, apiKey = "") },
+        enabled = state.isAccessibilityEnabled && state.status !is AgentStatus.Running,
+      ) {
+        Text(stringResource(Res.string.btn_run_agent))
+      }
+    }
+
+    Spacer(Modifier.height(16.dp))
+    LogPanel(logs = state.logs, modifier = Modifier.weight(1f).fillMaxWidth())
+  }
+}
+
+@Composable
+private fun StatusBanner(state: AgentState) {
+  val (text, color) =
+    when (state.status) {
+      is AgentStatus.Idle ->
+        stringResource(Res.string.label_agent_idle) to MaterialTheme.colorScheme.onBackground
+      is AgentStatus.Running ->
+        stringResource(Res.string.label_agent_running) to MaterialTheme.colorScheme.primary
+      is AgentStatus.Success ->
+        stringResource(Res.string.label_agent_success) to MaterialTheme.colorScheme.tertiary
+      is AgentStatus.Error ->
+        stringResource(
+          Res.string.label_agent_error,
+          (state.status as AgentStatus.Error).message,
+        ) to MaterialTheme.colorScheme.error
+    }
+  Text(text = text, color = color, style = MaterialTheme.typography.titleMedium)
+}
+
+@Composable
+private fun AccessibilityPrompt(viewModel: AgentViewModel) {
+  Column(
+    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+    horizontalAlignment = Alignment.CenterHorizontally,
+  ) {
+    Text(
+      text = stringResource(Res.string.label_accessibility_not_enabled),
+      color = MaterialTheme.colorScheme.error,
+      style = MaterialTheme.typography.bodyMedium,
+    )
+    Spacer(Modifier.height(8.dp))
+    Button(onClick = { viewModel.requestOpenAccessibilitySettings() }) {
+      Text(stringResource(Res.string.btn_open_accessibility_settings))
     }
   }
 }
 
-suspend fun runAgent(deviceController: DeviceController) {
-  val apiKey = ""
+@Composable
+private fun LogPanel(logs: List<String>, modifier: Modifier = Modifier) {
+  val listState = rememberLazyListState()
 
-  // Create an agent
-  val agent =
-    AIAgent(promptExecutor = simpleGoogleAIExecutor(apiKey), llmModel = GoogleModels.Gemini2_5Flash)
+  LaunchedEffect(logs.size) {
+    if (logs.isNotEmpty()) listState.animateScrollToItem(logs.size - 1)
+  }
 
-  val nodeTree = deviceController.getUiTree()?.toPromptString()
-
-  println("UI TREE: $nodeTree")
-
-  // Run the agent
-  val result =
-    agent.run(
-      "I am passing you a UI tree. There is a button node with text 'Agent Click here!', return ONLY AND ONLY that node index so that it can be clicked" +
-        "\n<UITree>\n" +
-        nodeTree +
-        "\n</UITree>"
+  if (logs.isEmpty()) {
+    Text(
+      text = stringResource(Res.string.label_log_empty),
+      style = MaterialTheme.typography.bodySmall,
+      color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-
-  println("CLICKING NODE: $result")
-  deviceController.executeCommand(AgentCommand.Click(nodeIndex = result.toInt()))
+  } else {
+    LazyColumn(state = listState, modifier = modifier) {
+      items(logs) { entry ->
+        Text(
+          text = entry,
+          style = MaterialTheme.typography.bodySmall,
+          modifier = Modifier.padding(vertical = 2.dp),
+        )
+      }
+    }
+  }
 }

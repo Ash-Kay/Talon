@@ -1,23 +1,35 @@
 package io.ashkay.talon
 
+import android.content.Intent
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import io.ashkay.talon.accessibility.TalonAccessibilityService
 
 class MainActivity : ComponentActivity() {
+  private var isAccessibilityEnabled by mutableStateOf(false)
+
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
 
-    setContent { App() }
+    setContent {
+      App(
+        onOpenAccessibilitySettings = {
+          startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        },
+        isAccessibilityEnabled = isAccessibilityEnabled,
+      )
+    }
   }
-}
 
-@Preview
-@Composable
-fun AppAndroidPreview() {
-  App()
+  override fun onResume() {
+    super.onResume()
+    isAccessibilityEnabled = TalonAccessibilityService.isRunning
+  }
 }

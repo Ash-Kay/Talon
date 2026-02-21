@@ -3,8 +3,12 @@ package io.ashkay.talon.platform
 import io.ashkay.talon.model.AgentCommand
 import io.ashkay.talon.model.UiNode
 
-interface DeviceController {
+interface UiTreeProvider {
   suspend fun getUiTree(): UiNode?
-
-  suspend fun executeCommand(command: AgentCommand): Boolean
 }
+
+interface CommandExecutor {
+  suspend fun execute(command: AgentCommand): Boolean
+}
+
+interface DeviceController : UiTreeProvider, CommandExecutor

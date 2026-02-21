@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Talon</string>
+    <string name="btn_get_ui_tree">Get UI Tree</string>
+    <string name="btn_run_agent">Run Agent</string>
+    <string name="hint_enter_goal">Enter your goal...</string>
+    <string name="label_agent_idle">Agent idle</string>
+    <string name="label_agent_running">Agent running...</string>
+    <string name="label_agent_success">Agent completed</string>
+    <string name="label_agent_error">Error: %1$s</string>
+    <string name="label_accessibility_not_enabled">Accessibility service is not enabled. Please enable it in Settings.</string>
+    <string name="btn_open_accessibility_settings">Open Accessibility Settings</string>
+    <string name="label_log_empty">No logs yet</string>
+</resources>
+
