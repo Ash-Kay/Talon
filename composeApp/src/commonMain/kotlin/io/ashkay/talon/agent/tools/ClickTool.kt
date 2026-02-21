@@ -5,6 +5,7 @@ import ai.koog.agents.core.tools.annotations.LLMDescription
 import io.ashkay.talon.model.AgentCommand
 import io.ashkay.talon.platform.DeviceController
 import io.github.aakira.napier.Napier
+import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 
 class ClickTool(private val deviceController: DeviceController) :
@@ -23,6 +24,7 @@ class ClickTool(private val deviceController: DeviceController) :
   override suspend fun execute(args: Args): String {
     Napier.d(tag = TAG) { "Clicking node ${args.nodeIndex}" }
     val success = deviceController.execute(AgentCommand.Click(args.nodeIndex))
+    if (success) delay(ToolConstants.UI_SETTLE_DELAY_MS)
     return if (success) "Clicked node ${args.nodeIndex} successfully"
     else "Failed to click node ${args.nodeIndex}"
   }

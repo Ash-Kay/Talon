@@ -15,4 +15,6 @@ data class AgentState(
   val logs: List<String> = emptyList(),
   val uiTreeSnapshot: String? = null,
   val isAccessibilityEnabled: Boolean = false,
+  val selectedProvider: LlmProvider = LlmProvider.GOOGLE,
+  val hasApiKey: Boolean = false,
 )

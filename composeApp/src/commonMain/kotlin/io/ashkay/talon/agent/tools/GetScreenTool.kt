@@ -27,6 +27,7 @@ class GetScreenTool(private val deviceController: DeviceController) :
       Napier.w(tag = TAG) { "UI tree is null" }
       return "ERROR: Could not capture screen. Accessibility service may not be running."
     }
+    Napier.d(tag = TAG) { "Captured UI tree: \n ${tree.toPromptString()}" }
     return tree.toPromptString()
   }
 

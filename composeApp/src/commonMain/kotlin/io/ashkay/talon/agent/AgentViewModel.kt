@@ -1,59 +1,85 @@
 package io.ashkay.talon.agent
 
 import ai.koog.agents.core.agent.AIAgent
+import ai.koog.prompt.executor.clients.anthropic.AnthropicModels
 import ai.koog.prompt.executor.clients.google.GoogleModels
+import ai.koog.prompt.executor.clients.openai.OpenAIModels
+import ai.koog.prompt.executor.clients.openrouter.OpenRouterModels
+import ai.koog.prompt.executor.llms.all.simpleAnthropicExecutor
 import ai.koog.prompt.executor.llms.all.simpleGoogleAIExecutor
+import ai.koog.prompt.executor.llms.all.simpleOpenAIExecutor
+import ai.koog.prompt.executor.llms.all.simpleOpenRouterExecutor
+import ai.koog.prompt.executor.model.PromptExecutor
+import ai.koog.prompt.llm.LLModel
 import androidx.lifecycle.ViewModel
 import io.ashkay.talon.agent.tools.TalonToolRegistry
-import io.ashkay.talon.model.toPromptString
+import io.ashkay.talon.data.SettingsRepository
 import io.ashkay.talon.platform.DeviceController
 import io.github.aakira.napier.Napier
 import org.orbitmvi.orbit.ContainerHost
 import org.orbitmvi.orbit.viewmodel.container
 
-class AgentViewModel(private val deviceController: DeviceController) :
-  ViewModel(), ContainerHost<AgentState, AgentSideEffect> {
+class AgentViewModel(
+  private val deviceController: DeviceController,
+  private val settingsRepository: SettingsRepository,
+) : ViewModel(), ContainerHost<AgentState, AgentSideEffect> {
 
-  override val container = container<AgentState, AgentSideEffect>(AgentState())
+  override val container =
+    container<AgentState, AgentSideEffect>(
+      AgentState(
+        selectedProvider = settingsRepository.getSelectedProvider(),
+        hasApiKey =
+          settingsRepository.getApiKey(settingsRepository.getSelectedProvider()).isNotBlank(),
+      )
+    )
 
   fun refreshAccessibilityStatus(enabled: Boolean) = intent {
     Napier.d(tag = TAG) { "Accessibility enabled: $enabled" }
     reduce { state.copy(isAccessibilityEnabled = enabled) }
   }
 
-  fun captureUiTree() = intent {
-    Napier.d(tag = TAG) { "Capturing UI tree" }
-    appendLog("Capturing UI tree...")
-    val tree = deviceController.getUiTree()
-    if (tree == null) {
-      Napier.w(tag = TAG) { "UI tree is null" }
-      appendLog("Failed: UI tree is null")
-      postSideEffect(AgentSideEffect.ShowToast("UI tree unavailable"))
-      return@intent
-    }
-    val prompt = tree.toPromptString()
-    Napier.d(tag = TAG) { "UI tree captured" }
-    reduce { state.copy(uiTreeSnapshot = prompt) }
-    appendLog("UI tree captured (${tree.children.size} top-level children)")
+  fun selectProvider(provider: LlmProvider) = intent {
+    Napier.d(tag = TAG) { "Provider selected: ${provider.displayName}" }
+    settingsRepository.setSelectedProvider(provider)
+    val hasKey = settingsRepository.getApiKey(provider).isNotBlank()
+    reduce { state.copy(selectedProvider = provider, hasApiKey = hasKey) }
   }
 
-  fun runAgent(goal: String, apiKey: String) = intent {
+  fun saveApiKey(apiKey: String) = intent {
+    val provider = state.selectedProvider
+    Napier.d(tag = TAG) { "Saving API key for ${provider.displayName}" }
+    settingsRepository.setApiKey(provider, apiKey)
+    reduce { state.copy(hasApiKey = apiKey.isNotBlank()) }
+  }
+
+  fun getStoredApiKey(): String =
+    settingsRepository.getApiKey(settingsRepository.getSelectedProvider())
+
+  fun runAgent(goal: String) = intent {
     if (goal.isBlank()) {
       postSideEffect(AgentSideEffect.ShowToast("Please enter a goal"))
       return@intent
     }
-    Napier.i(tag = TAG) { "Running agent with goal: $goal" }
+    val provider = state.selectedProvider
+    val apiKey = settingsRepository.getApiKey(provider)
+    if (apiKey.isBlank()) {
+      postSideEffect(AgentSideEffect.ShowToast("Please set an API key for ${provider.displayName}"))
+      return@intent
+    }
+    Napier.i(tag = TAG) { "Running agent with goal: $goal, provider: ${provider.displayName}" }
     reduce { state.copy(status = AgentStatus.Running, logs = emptyList()) }
     postSideEffect(AgentSideEffect.StartForegroundService)
     appendLog("Goal: $goal")
+    appendLog("Provider: ${provider.displayName}")
 
     try {
       val toolRegistry = TalonToolRegistry.create(deviceController)
+      val (executor, model) = createExecutorAndModel(provider, apiKey)
 
       val agent =
         AIAgent(
-          promptExecutor = simpleGoogleAIExecutor(apiKey),
-          llmModel = GoogleModels.Gemini2_5Flash,
+          promptExecutor = executor,
+          llmModel = model,
           systemPrompt = SYSTEM_PROMPT,
           toolRegistry = toolRegistry,
           strategy = talonAgentStrategy,
@@ -61,7 +87,7 @@ class AgentViewModel(private val deviceController: DeviceController) :
         )
 
       appendLog("Agent started...")
-      Napier.d(tag = TAG) { "Agent created with toolRegistry" }
+      Napier.d(tag = TAG) { "Agent created with ${provider.displayName}" }
 
       val result = agent.run(goal)
 
@@ -82,6 +108,17 @@ class AgentViewModel(private val deviceController: DeviceController) :
     postSideEffect(AgentSideEffect.OpenAccessibilitySettings)
   }
 
+  private fun createExecutorAndModel(
+    provider: LlmProvider,
+    apiKey: String,
+  ): Pair<PromptExecutor, LLModel> =
+    when (provider) {
+      LlmProvider.GOOGLE -> simpleGoogleAIExecutor(apiKey) to GoogleModels.Gemini2_5Flash
+      LlmProvider.OPEN_AI -> simpleOpenAIExecutor(apiKey) to OpenAIModels.Chat.GPT4o
+      LlmProvider.ANTHROPIC -> simpleAnthropicExecutor(apiKey) to AnthropicModels.Sonnet_3_5
+      LlmProvider.OPEN_ROUTER -> simpleOpenRouterExecutor(apiKey) to OpenRouterModels.Gemini2_5Flash
+    }
+
   private fun appendLog(entry: String) = intent {
     Napier.d(tag = TAG) { "Log: $entry" }
     reduce { state.copy(logs = state.logs + entry) }
@@ -89,7 +126,7 @@ class AgentViewModel(private val deviceController: DeviceController) :
 
   companion object {
     private const val TAG = "AgentViewModel"
-    private const val MAX_AGENT_ITERATIONS = 30
+    private const val MAX_AGENT_ITERATIONS = 100
 
     private const val SYSTEM_PROMPT =
       """You are Talon, an autonomous mobile device agent. You control an Android phone by using tools.
@@ -102,7 +139,7 @@ WORKFLOW:
 5. Continue step by step until the user's goal is fully completed.
 
 RULES:
-- ALWAYS call get_screen before clicking, typing, or scrolling so you have fresh node indices.
+- ALWAYS call get_screen before and after clicking, typing, or scrolling so you have fresh node indices.
 - After launching an app, wait and then call get_screen.
 - If a click didn't change the screen, try scrolling to find the target element.
 - If you are stuck, try go_back and re-approach.

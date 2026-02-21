@@ -5,6 +5,7 @@ import ai.koog.agents.core.tools.annotations.LLMDescription
 import io.ashkay.talon.model.AgentCommand
 import io.ashkay.talon.platform.DeviceController
 import io.github.aakira.napier.Napier
+import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 
 class TypeTextTool(private val deviceController: DeviceController) :
@@ -24,6 +25,7 @@ class TypeTextTool(private val deviceController: DeviceController) :
   override suspend fun execute(args: Args): String {
     Napier.d(tag = TAG) { "Typing '${args.text}' into node ${args.nodeIndex}" }
     val success = deviceController.execute(AgentCommand.Type(args.nodeIndex, args.text))
+    if (success) delay(ToolConstants.UI_SETTLE_DELAY_MS)
     return if (success) "Typed '${args.text}' into node ${args.nodeIndex}"
     else "Failed to type into node ${args.nodeIndex}"
   }

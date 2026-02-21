@@ -24,15 +24,12 @@ class LaunchAppTool(private val deviceController: DeviceController) :
   override suspend fun execute(args: Args): String {
     Napier.d(tag = TAG) { "Launching app: ${args.packageName}" }
     val success = deviceController.launchApp(args.packageName)
-    if (success) {
-      delay(LAUNCH_SETTLE_MS)
-    }
+    if (success) delay(ToolConstants.APP_LAUNCH_DELAY_MS)
     return if (success) "Launched ${args.packageName}. Call get_screen to see the current UI."
     else "Failed to launch ${args.packageName}. Check the package name."
   }
 
   companion object {
     private const val TAG = "LaunchAppTool"
-    private const val LAUNCH_SETTLE_MS = 1500L
   }
 }

@@ -14,6 +14,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -21,29 +27,36 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import io.ashkay.talon.agent.AgentSideEffect
 import io.ashkay.talon.agent.AgentState
 import io.ashkay.talon.agent.AgentStatus
 import io.ashkay.talon.agent.AgentViewModel
+import io.ashkay.talon.agent.LlmProvider
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
 import talon.composeapp.generated.resources.Res
-import talon.composeapp.generated.resources.btn_get_ui_tree
 import talon.composeapp.generated.resources.btn_open_accessibility_settings
 import talon.composeapp.generated.resources.btn_run_agent
+import talon.composeapp.generated.resources.btn_save_key
+import talon.composeapp.generated.resources.hint_api_key
 import talon.composeapp.generated.resources.hint_enter_goal
 import talon.composeapp.generated.resources.label_accessibility_not_enabled
 import talon.composeapp.generated.resources.label_agent_error
 import talon.composeapp.generated.resources.label_agent_idle
 import talon.composeapp.generated.resources.label_agent_running
 import talon.composeapp.generated.resources.label_agent_success
+import talon.composeapp.generated.resources.label_api_key_not_set
+import talon.composeapp.generated.resources.label_llm_provider
 import talon.composeapp.generated.resources.label_log_empty
 
 @Composable
@@ -91,6 +104,22 @@ private fun AgentScreen(state: AgentState, viewModel: AgentViewModel) {
       AccessibilityPrompt(viewModel)
     }
 
+    LlmProviderSelector(
+      selectedProvider = state.selectedProvider,
+      onProviderSelected = { viewModel.selectProvider(it) },
+    )
+
+    Spacer(Modifier.height(8.dp))
+
+    ApiKeyField(
+      provider = state.selectedProvider,
+      hasApiKey = state.hasApiKey,
+      onSave = { viewModel.saveApiKey(it) },
+      loadStoredKey = { viewModel.getStoredApiKey() },
+    )
+
+    Spacer(Modifier.height(12.dp))
+
     OutlinedTextField(
       value = goal,
       onValueChange = { goal = it },
@@ -101,23 +130,102 @@ private fun AgentScreen(state: AgentState, viewModel: AgentViewModel) {
 
     Spacer(Modifier.height(12.dp))
 
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-      Button(
-        onClick = { viewModel.captureUiTree() },
-        enabled = state.isAccessibilityEnabled && state.status !is AgentStatus.Running,
-      ) {
-        Text(stringResource(Res.string.btn_get_ui_tree))
-      }
-      Button(
-        onClick = { viewModel.runAgent(goal, apiKey = "") },
-        enabled = state.isAccessibilityEnabled && state.status !is AgentStatus.Running,
-      ) {
-        Text(stringResource(Res.string.btn_run_agent))
-      }
+    Button(
+      onClick = { viewModel.runAgent(goal) },
+      enabled =
+        state.isAccessibilityEnabled && state.hasApiKey && state.status !is AgentStatus.Running,
+      modifier = Modifier.fillMaxWidth(),
+    ) {
+      Text(stringResource(Res.string.btn_run_agent))
     }
 
     Spacer(Modifier.height(16.dp))
     LogPanel(logs = state.logs, modifier = Modifier.weight(1f).fillMaxWidth())
+  }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LlmProviderSelector(
+  selectedProvider: LlmProvider,
+  onProviderSelected: (LlmProvider) -> Unit,
+) {
+  var expanded by remember { mutableStateOf(false) }
+
+  ExposedDropdownMenuBox(
+    expanded = expanded,
+    onExpandedChange = { expanded = it },
+    modifier = Modifier.fillMaxWidth(),
+  ) {
+    OutlinedTextField(
+      value = selectedProvider.displayName,
+      onValueChange = {},
+      readOnly = true,
+      label = { Text(stringResource(Res.string.label_llm_provider)) },
+      trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+      modifier =
+        Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+    )
+    ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+      LlmProvider.entries.forEach { provider ->
+        DropdownMenuItem(
+          text = { Text(provider.displayName) },
+          onClick = {
+            onProviderSelected(provider)
+            expanded = false
+          },
+        )
+      }
+    }
+  }
+}
+
+@Composable
+private fun ApiKeyField(
+  provider: LlmProvider,
+  hasApiKey: Boolean,
+  onSave: (String) -> Unit,
+  loadStoredKey: () -> String,
+) {
+  var apiKeyInput by rememberSaveable(provider) { mutableStateOf(loadStoredKey()) }
+  var keyVisible by remember { mutableStateOf(false) }
+
+  Row(
+    modifier = Modifier.fillMaxWidth(),
+    verticalAlignment = Alignment.CenterVertically,
+    horizontalArrangement = Arrangement.spacedBy(8.dp),
+  ) {
+    OutlinedTextField(
+      value = apiKeyInput,
+      onValueChange = { apiKeyInput = it },
+      label = { Text(stringResource(Res.string.hint_api_key)) },
+      modifier = Modifier.weight(1f),
+      singleLine = true,
+      visualTransformation =
+        if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+      trailingIcon = {
+        IconButton(onClick = { keyVisible = !keyVisible }) {
+          Text(text = if (keyVisible) "🙈" else "👁", style = MaterialTheme.typography.bodyLarge)
+        }
+      },
+    )
+    Button(
+      onClick = {
+        onSave(apiKeyInput)
+        keyVisible = false
+      }
+    ) {
+      Text(stringResource(Res.string.btn_save_key))
+    }
+  }
+
+  if (!hasApiKey) {
+    Text(
+      text = stringResource(Res.string.label_api_key_not_set, provider.displayName),
+      color = MaterialTheme.colorScheme.error,
+      style = MaterialTheme.typography.bodySmall,
+      modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+    )
   }
 }
 
