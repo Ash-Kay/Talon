@@ -62,6 +62,10 @@ class TalonAccessibilityService : AccessibilityService() {
         val root = rootInActiveWindow ?: return false
         typeHandler.execute(root, command)
       }
+      is AgentCommand.GetInstalledApps -> {
+        Napier.d(tag = TAG) { "GetInstalledApps handled at controller level" }
+        true
+      }
     }
   }
 

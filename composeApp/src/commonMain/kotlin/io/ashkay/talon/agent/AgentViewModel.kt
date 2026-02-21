@@ -78,9 +78,15 @@ class AgentViewModel(private val deviceController: DeviceController) :
       val command = parseAgentResponse(result)
       if (command != null) {
         appendLog("Executing: $command")
-        val success = deviceController.execute(command)
-        appendLog(if (success) "Command executed successfully" else "Command execution failed")
-        Napier.d(tag = TAG) { "Command $command result: $success" }
+        if (command is AgentCommand.GetInstalledApps) {
+          val apps = deviceController.getInstalledApps()
+          appendLog("Found ${apps.size} installed apps")
+          Napier.d(tag = TAG) { apps.toPromptString() }
+        } else {
+          val success = deviceController.execute(command)
+          appendLog(if (success) "Command executed successfully" else "Command execution failed")
+          Napier.d(tag = TAG) { "Command $command result: $success" }
+        }
       } else {
         appendLog("No actionable command parsed from response")
       }
@@ -116,7 +122,9 @@ class AgentViewModel(private val deviceController: DeviceController) :
     |TYPE <index> <text>
     |SCROLL <index> UP|DOWN|LEFT|RIGHT
     |BACK
+    |APP_LIST
     |
+    |Use APP_LIST to get a list of installed apps on the device.
     |Return ONLY the action line, nothing else.
     """
       .trimMargin()
@@ -148,6 +156,7 @@ class AgentViewModel(private val deviceController: DeviceController) :
         if (index != null && dir != null) AgentCommand.Scroll(index, dir) else null
       }
       trimmed == "BACK" -> AgentCommand.GoBack
+      trimmed == "APP_LIST" -> AgentCommand.GetInstalledApps
       else -> null
     }
   }
