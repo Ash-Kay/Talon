@@ -9,7 +9,6 @@ import io.ashkay.talon.model.toPromptString
 import io.ashkay.talon.platform.DeviceController
 import io.github.aakira.napier.Napier
 import org.orbitmvi.orbit.ContainerHost
-import org.orbitmvi.orbit.container
 import org.orbitmvi.orbit.viewmodel.container
 
 class AgentViewModel(private val deviceController: DeviceController) :
@@ -45,6 +44,7 @@ class AgentViewModel(private val deviceController: DeviceController) :
     }
     Napier.i(tag = TAG) { "Running agent with goal: $goal" }
     reduce { state.copy(status = AgentStatus.Running, logs = emptyList()) }
+    postSideEffect(AgentSideEffect.StartForegroundService)
     appendLog("Goal: $goal")
 
     try {
@@ -54,6 +54,7 @@ class AgentViewModel(private val deviceController: DeviceController) :
         Napier.w(tag = TAG) { "UI tree unavailable" }
         reduce { state.copy(status = AgentStatus.Error("UI tree unavailable")) }
         appendLog("Error: UI tree is null")
+        postSideEffect(AgentSideEffect.StopForegroundService)
         return@intent
       }
 
@@ -85,10 +86,12 @@ class AgentViewModel(private val deviceController: DeviceController) :
       }
 
       reduce { state.copy(status = AgentStatus.Success(result)) }
+      postSideEffect(AgentSideEffect.StopForegroundService)
     } catch (e: Exception) {
       Napier.e(tag = TAG, throwable = e) { "Agent failed" }
       reduce { state.copy(status = AgentStatus.Error(e.message ?: "Unknown error")) }
       appendLog("Error: ${e.message}")
+      postSideEffect(AgentSideEffect.StopForegroundService)
     }
   }
 
@@ -149,11 +152,9 @@ class AgentViewModel(private val deviceController: DeviceController) :
     }
   }
 
-  private suspend fun ContainerHost<AgentState, AgentSideEffect>.appendLog(entry: String) {
-    intent {
-      Napier.d(tag = TAG) { "Log: $entry" }
-      reduce { state.copy(logs = state.logs + entry) }
-    }
+  private fun appendLog(entry: String) = intent {
+    Napier.d(tag = TAG) { "Log: $entry" }
+    reduce { state.copy(logs = state.logs + entry) }
   }
 
   companion object {

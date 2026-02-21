@@ -49,6 +49,8 @@ import talon.composeapp.generated.resources.label_log_empty
 @Composable
 fun App(
   onOpenAccessibilitySettings: () -> Unit = {},
+  onStartForegroundService: () -> Unit = {},
+  onStopForegroundService: () -> Unit = {},
   isAccessibilityEnabled: Boolean = false,
   viewModel: AgentViewModel = koinViewModel(),
 ) {
@@ -61,6 +63,8 @@ fun App(
   viewModel.collectSideEffect { sideEffect ->
     when (sideEffect) {
       is AgentSideEffect.OpenAccessibilitySettings -> onOpenAccessibilitySettings()
+      is AgentSideEffect.StartForegroundService -> onStartForegroundService()
+      is AgentSideEffect.StopForegroundService -> onStopForegroundService()
       is AgentSideEffect.ShowToast -> {}
     }
   }
@@ -128,10 +132,8 @@ private fun StatusBanner(state: AgentState) {
       is AgentStatus.Success ->
         stringResource(Res.string.label_agent_success) to MaterialTheme.colorScheme.tertiary
       is AgentStatus.Error ->
-        stringResource(
-          Res.string.label_agent_error,
-          (state.status as AgentStatus.Error).message,
-        ) to MaterialTheme.colorScheme.error
+        stringResource(Res.string.label_agent_error, (state.status).message) to
+          MaterialTheme.colorScheme.error
     }
   Text(text = text, color = color, style = MaterialTheme.typography.titleMedium)
 }
@@ -158,9 +160,7 @@ private fun AccessibilityPrompt(viewModel: AgentViewModel) {
 private fun LogPanel(logs: List<String>, modifier: Modifier = Modifier) {
   val listState = rememberLazyListState()
 
-  LaunchedEffect(logs.size) {
-    if (logs.isNotEmpty()) listState.animateScrollToItem(logs.size - 1)
-  }
+  LaunchedEffect(logs.size) { if (logs.isNotEmpty()) listState.animateScrollToItem(logs.size - 1) }
 
   if (logs.isEmpty()) {
     Text(
