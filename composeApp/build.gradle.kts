@@ -44,6 +44,9 @@ kotlin {
       implementation(libs.orbit.core)
       implementation(libs.orbit.viewmodel)
       implementation(libs.orbit.compose)
+
+      implementation(libs.multiplatform.settings)
+      implementation(libs.multiplatform.settings.no.arg)
     }
     commonTest.dependencies { implementation(libs.kotlin.test) }
   }
