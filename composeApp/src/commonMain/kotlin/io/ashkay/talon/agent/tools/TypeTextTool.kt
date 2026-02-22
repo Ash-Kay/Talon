@@ -8,7 +8,10 @@ import io.github.aakira.napier.Napier
 import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 
-class TypeTextTool(private val deviceController: DeviceController) :
+class TypeTextTool(
+  private val deviceController: DeviceController,
+  private val onToolExecuted: ToolLogCallback = { _, _ -> },
+) :
   SimpleTool<TypeTextTool.Args>(
     argsSerializer = Args.serializer(),
     name = "type_text",
@@ -25,7 +28,10 @@ class TypeTextTool(private val deviceController: DeviceController) :
   override suspend fun execute(args: Args): String {
     Napier.d(tag = TAG) { "Typing '${args.text}' into node ${args.nodeIndex}" }
     val success = deviceController.execute(AgentCommand.Type(args.nodeIndex, args.text))
-    if (success) delay(ToolConstants.UI_SETTLE_DELAY_MS)
+    if (success) {
+      delay(ToolConstants.UI_SETTLE_DELAY_MS)
+      onToolExecuted("type_text", args.text)
+    }
     return if (success) "Typed '${args.text}' into node ${args.nodeIndex}"
     else "Failed to type into node ${args.nodeIndex}"
   }

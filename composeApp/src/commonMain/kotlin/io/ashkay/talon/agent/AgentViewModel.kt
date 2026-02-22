@@ -69,11 +69,14 @@ class AgentViewModel(
     Napier.i(tag = TAG) { "Running agent with goal: $goal, provider: ${provider.displayName}" }
     reduce { state.copy(status = AgentStatus.Running, logs = emptyList()) }
     postSideEffect(AgentSideEffect.StartForegroundService)
-    appendLog("Goal: $goal")
-    appendLog("Provider: ${provider.displayName}")
+    appendLog(LogEntry("Goal: $goal", LogStatus.INFO))
+    appendLog(LogEntry("Provider: ${provider.displayName}", LogStatus.INFO))
 
     try {
-      val toolRegistry = TalonToolRegistry.create(deviceController)
+      val toolRegistry =
+        TalonToolRegistry.create(deviceController) { toolName, detail ->
+          appendLog(LogEntry(formatToolLog(toolName, detail), LogStatus.DONE))
+        }
       val (executor, model) = createExecutorAndModel(provider, apiKey)
 
       val agent =
@@ -86,19 +89,19 @@ class AgentViewModel(
           maxIterations = MAX_AGENT_ITERATIONS,
         )
 
-      appendLog("Agent started...")
+      appendLog(LogEntry("Agent started...", LogStatus.ONGOING))
       Napier.d(tag = TAG) { "Agent created with ${provider.displayName}" }
 
       val result = agent.run(goal)
 
       Napier.i(tag = TAG) { "Agent completed: $result" }
-      appendLog("Agent completed: $result")
+      appendLog(LogEntry("Agent completed", LogStatus.DONE))
       reduce { state.copy(status = AgentStatus.Success(result)) }
       postSideEffect(AgentSideEffect.StopForegroundService)
     } catch (e: Exception) {
       Napier.e(tag = TAG, throwable = e) { "Agent failed" }
       reduce { state.copy(status = AgentStatus.Error(e.message ?: "Unknown error")) }
-      appendLog("Error: ${e.message}")
+      appendLog(LogEntry("Error: ${e.message}", LogStatus.ERROR))
       postSideEffect(AgentSideEffect.StopForegroundService)
     }
   }
@@ -119,10 +122,22 @@ class AgentViewModel(
       LlmProvider.OPEN_ROUTER -> simpleOpenRouterExecutor(apiKey) to OpenRouterModels.Gemini2_5Flash
     }
 
-  private fun appendLog(entry: String) = intent {
-    Napier.d(tag = TAG) { "Log: $entry" }
+  private fun appendLog(entry: LogEntry) = intent {
+    Napier.d(tag = TAG) { "Log: ${entry.message}" }
     reduce { state.copy(logs = state.logs + entry) }
   }
+
+  private fun formatToolLog(toolName: String, detail: String): String =
+    when (toolName) {
+      "get_screen" -> "📷 Screen captured"
+      "click" -> "👆 Clicked: $detail"
+      "type_text" -> "⌨️ Typed: \"$detail\""
+      "scroll" -> "📜 Scrolled: $detail"
+      "go_back" -> "◀️ Navigated back"
+      "launch_app" -> "🚀 Launched app: $detail"
+      "get_installed_apps" -> "📱 Fetched installed apps"
+      else -> "🔧 $toolName: $detail"
+    }
 
   companion object {
     private const val TAG = "AgentViewModel"

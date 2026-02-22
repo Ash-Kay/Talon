@@ -7,7 +7,10 @@ import io.github.aakira.napier.Napier
 import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 
-class LaunchAppTool(private val deviceController: DeviceController) :
+class LaunchAppTool(
+  private val deviceController: DeviceController,
+  private val onToolExecuted: ToolLogCallback = { _, _ -> },
+) :
   SimpleTool<LaunchAppTool.Args>(
     argsSerializer = Args.serializer(),
     name = "launch_app",
@@ -24,7 +27,10 @@ class LaunchAppTool(private val deviceController: DeviceController) :
   override suspend fun execute(args: Args): String {
     Napier.d(tag = TAG) { "Launching app: ${args.packageName}" }
     val success = deviceController.launchApp(args.packageName)
-    if (success) delay(ToolConstants.APP_LAUNCH_DELAY_MS)
+    if (success) {
+      delay(ToolConstants.APP_LAUNCH_DELAY_MS)
+      onToolExecuted("launch_app", args.packageName)
+    }
     return if (success) "Launched ${args.packageName}. Call get_screen to see the current UI."
     else "Failed to launch ${args.packageName}. Check the package name."
   }

@@ -7,7 +7,10 @@ import io.ashkay.talon.platform.DeviceController
 import io.github.aakira.napier.Napier
 import kotlinx.serialization.Serializable
 
-class GetInstalledAppsTool(private val deviceController: DeviceController) :
+class GetInstalledAppsTool(
+  private val deviceController: DeviceController,
+  private val onToolExecuted: ToolLogCallback = { _, _ -> },
+) :
   SimpleTool<GetInstalledAppsTool.Args>(
     argsSerializer = Args.serializer(),
     name = "get_installed_apps",
@@ -24,6 +27,7 @@ class GetInstalledAppsTool(private val deviceController: DeviceController) :
     Napier.d(tag = TAG) { "Executing get_installed_apps" }
     val apps = deviceController.getInstalledApps()
     Napier.d(tag = TAG) { "Found ${apps.size} apps" }
+    onToolExecuted("get_installed_apps", "${apps.size} apps")
     return apps.toPromptString()
   }
 

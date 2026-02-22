@@ -9,7 +9,10 @@ import io.github.aakira.napier.Napier
 import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 
-class ScrollTool(private val deviceController: DeviceController) :
+class ScrollTool(
+  private val deviceController: DeviceController,
+  private val onToolExecuted: ToolLogCallback = { _, _ -> },
+) :
   SimpleTool<ScrollTool.Args>(
     argsSerializer = Args.serializer(),
     name = "scroll",
@@ -34,7 +37,10 @@ class ScrollTool(private val deviceController: DeviceController) :
         else -> return "ERROR: Invalid direction '${args.direction}'. Use UP, DOWN, LEFT, or RIGHT."
       }
     val success = deviceController.execute(AgentCommand.Scroll(args.nodeIndex, dir))
-    if (success) delay(ToolConstants.UI_SETTLE_DELAY_MS)
+    if (success) {
+      delay(ToolConstants.UI_SETTLE_DELAY_MS)
+      onToolExecuted("scroll", args.direction)
+    }
     return if (success) "Scrolled node ${args.nodeIndex} ${args.direction}"
     else "Failed to scroll node ${args.nodeIndex}"
   }

@@ -8,7 +8,10 @@ import io.github.aakira.napier.Napier
 import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 
-class ClickTool(private val deviceController: DeviceController) :
+class ClickTool(
+  private val deviceController: DeviceController,
+  private val onToolExecuted: ToolLogCallback = { _, _ -> },
+) :
   SimpleTool<ClickTool.Args>(
     argsSerializer = Args.serializer(),
     name = "click",
@@ -24,7 +27,10 @@ class ClickTool(private val deviceController: DeviceController) :
   override suspend fun execute(args: Args): String {
     Napier.d(tag = TAG) { "Clicking node ${args.nodeIndex}" }
     val success = deviceController.execute(AgentCommand.Click(args.nodeIndex))
-    if (success) delay(ToolConstants.UI_SETTLE_DELAY_MS)
+    if (success) {
+      delay(ToolConstants.UI_SETTLE_DELAY_MS)
+      onToolExecuted("click", "node ${args.nodeIndex}")
+    }
     return if (success) "Clicked node ${args.nodeIndex} successfully"
     else "Failed to click node ${args.nodeIndex}"
   }

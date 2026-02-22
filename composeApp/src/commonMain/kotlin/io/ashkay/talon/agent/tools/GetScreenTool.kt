@@ -7,7 +7,10 @@ import io.ashkay.talon.platform.DeviceController
 import io.github.aakira.napier.Napier
 import kotlinx.serialization.Serializable
 
-class GetScreenTool(private val deviceController: DeviceController) :
+class GetScreenTool(
+  private val deviceController: DeviceController,
+  private val onToolExecuted: ToolLogCallback = { _, _ -> },
+) :
   SimpleTool<GetScreenTool.Args>(
     argsSerializer = Args.serializer(),
     name = "get_screen",
@@ -28,6 +31,7 @@ class GetScreenTool(private val deviceController: DeviceController) :
       return "ERROR: Could not capture screen. Accessibility service may not be running."
     }
     Napier.d(tag = TAG) { "Captured UI tree: \n ${tree.toPromptString()}" }
+    onToolExecuted("get_screen", "")
     return tree.toPromptString()
   }
 
