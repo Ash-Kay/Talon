@@ -14,5 +14,24 @@
     <string name="btn_save_key">Save</string>
     <string name="label_api_key_saved">API key saved</string>
     <string name="label_api_key_not_set">API key not set for %1$s</string>
+    <string name="btn_next">Next</string>
+    <string name="btn_get_started">Get Started</string>
+    <string name="btn_finish">Finish</string>
+    <string name="btn_enable_accessibility">Enable Accessibility Service</string>
+    <string name="btn_grant_notification">Grant Notification Permission</string>
+    <string name="btn_skip">Skip</string>
+    <string name="onboarding_provider_title">Choose your LLM Provider</string>
+    <string name="onboarding_provider_description">Select the AI provider you want Talon to use for planning and executing tasks on your device.</string>
+    <string name="onboarding_api_key_title">Enter your API Key</string>
+    <string name="onboarding_api_key_description">Provide the API key for %1$s. Your key is stored securely on this device.</string>
+    <string name="onboarding_accessibility_title">Accessibility Permission</string>
+    <string name="onboarding_accessibility_description">Talon needs accessibility access to read and interact with the UI on your behalf. Enable the Talon Accessibility Service in the next screen.</string>
+    <string name="onboarding_accessibility_enabled">Accessibility service is enabled ✓</string>
+    <string name="onboarding_notification_title">Notification Permission</string>
+    <string name="onboarding_notification_description">Allow notifications so Talon can keep you informed while running tasks in the background.</string>
+    <string name="onboarding_notification_granted">Notification permission granted ✓</string>
+    <string name="onboarding_welcome_title">Talon</string>
+    <string name="onboarding_welcome_subtitle">Your AI-powered mobile agent</string>
+    <string name="onboarding_welcome_description">Talon can autonomously control your phone — open apps, tap buttons, type text, and complete tasks on your behalf using AI.</string>
 </resources>
 

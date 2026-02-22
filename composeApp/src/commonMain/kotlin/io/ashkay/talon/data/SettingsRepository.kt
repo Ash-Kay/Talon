@@ -27,11 +27,19 @@ class SettingsRepository(private val settings: Settings) {
     settings.putString(KEY_SELECTED_PROVIDER, provider.name)
   }
 
+  fun isOnboardingCompleted(): Boolean = settings.getBoolean(KEY_ONBOARDING_COMPLETED, false)
+
+  fun setOnboardingCompleted(completed: Boolean) {
+    Napier.d(tag = TAG) { "Onboarding completed: $completed" }
+    settings.putBoolean(KEY_ONBOARDING_COMPLETED, completed)
+  }
+
   private fun apiKeyKey(provider: LlmProvider): String = "${KEY_API_KEY_PREFIX}${provider.name}"
 
   companion object {
     private const val TAG = "SettingsRepo"
     private const val KEY_SELECTED_PROVIDER = "selected_llm_provider"
     private const val KEY_API_KEY_PREFIX = "api_key_"
+    private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
   }
 }
