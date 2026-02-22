@@ -1,48 +1,45 @@
 package io.ashkay.talon
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeContentPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.Button
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import io.ashkay.talon.agent.AgentSideEffect
-import io.ashkay.talon.agent.AgentState
-import io.ashkay.talon.agent.AgentStatus
-import io.ashkay.talon.agent.AgentViewModel
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import io.ashkay.talon.data.SettingsRepository
+import io.ashkay.talon.navigation.HomeDestination
+import io.ashkay.talon.navigation.SettingsDestination
+import io.ashkay.talon.navigation.TasksDestination
+import io.ashkay.talon.ui.home.HomeScreen
 import io.ashkay.talon.ui.onboarding.OnboardingScreen
+import io.ashkay.talon.ui.settings.SettingsScreen
+import io.ashkay.talon.ui.tasks.TasksScreen
 import org.jetbrains.compose.resources.stringResource
-import org.koin.compose.viewmodel.koinViewModel
 import org.koin.mp.KoinPlatform
-import org.orbitmvi.orbit.compose.collectAsState
-import org.orbitmvi.orbit.compose.collectSideEffect
 import talon.composeapp.generated.resources.Res
-import talon.composeapp.generated.resources.btn_run_agent
-import talon.composeapp.generated.resources.hint_enter_goal
-import talon.composeapp.generated.resources.label_agent_error
-import talon.composeapp.generated.resources.label_agent_idle
-import talon.composeapp.generated.resources.label_agent_running
-import talon.composeapp.generated.resources.label_agent_success
-import talon.composeapp.generated.resources.label_log_empty
+import talon.composeapp.generated.resources.tab_home
+import talon.composeapp.generated.resources.tab_settings
+import talon.composeapp.generated.resources.tab_tasks
+
+data class BottomNavItem(val route: Any, val label: @Composable () -> String, val icon: String)
 
 @Composable
 fun App(
@@ -60,7 +57,7 @@ fun App(
 
   MaterialTheme {
     if (onboardingCompleted) {
-      AgentRoot(
+      MainShell(
         onOpenAccessibilitySettings = onOpenAccessibilitySettings,
         onStartForegroundService = onStartForegroundService,
         onStopForegroundService = onStopForegroundService,
@@ -80,106 +77,73 @@ fun App(
 }
 
 @Composable
-private fun AgentRoot(
+private fun MainShell(
   onOpenAccessibilitySettings: () -> Unit,
   onStartForegroundService: () -> Unit,
   onStopForegroundService: () -> Unit,
   isAccessibilityEnabled: Boolean,
-  viewModel: AgentViewModel = koinViewModel(),
 ) {
-  val state by viewModel.collectAsState()
+  val navController = rememberNavController()
 
-  LaunchedEffect(isAccessibilityEnabled) {
-    viewModel.refreshAccessibilityStatus(isAccessibilityEnabled)
-  }
-
-  viewModel.collectSideEffect { sideEffect ->
-    when (sideEffect) {
-      is AgentSideEffect.OpenAccessibilitySettings -> onOpenAccessibilitySettings()
-      is AgentSideEffect.StartForegroundService -> onStartForegroundService()
-      is AgentSideEffect.StopForegroundService -> onStopForegroundService()
-      is AgentSideEffect.ShowToast -> {}
-    }
-  }
-
-  AgentScreen(state = state, viewModel = viewModel)
-}
-
-@Composable
-private fun AgentScreen(state: AgentState, viewModel: AgentViewModel) {
-  var goal by rememberSaveable { mutableStateOf("") }
-
-  Column(
-    modifier =
-      Modifier.background(MaterialTheme.colorScheme.background)
-        .safeContentPadding()
-        .fillMaxSize()
-        .padding(16.dp),
-    horizontalAlignment = Alignment.CenterHorizontally,
-  ) {
-    StatusBanner(state)
-    Spacer(Modifier.height(12.dp))
-
-    OutlinedTextField(
-      value = goal,
-      onValueChange = { goal = it },
-      label = { Text(stringResource(Res.string.hint_enter_goal)) },
-      modifier = Modifier.fillMaxWidth(),
-      singleLine = true,
+  val bottomNavItems =
+    listOf(
+      BottomNavItem(HomeDestination, { stringResource(Res.string.tab_home) }, "🏠"),
+      BottomNavItem(TasksDestination, { stringResource(Res.string.tab_tasks) }, "📋"),
+      BottomNavItem(SettingsDestination, { stringResource(Res.string.tab_settings) }, "⚙"),
     )
 
-    Spacer(Modifier.height(12.dp))
+  val navBackStackEntry by navController.currentBackStackEntryAsState()
+  val currentRoute = navBackStackEntry?.destination?.route.orEmpty()
 
-    Button(
-      onClick = { viewModel.runAgent(goal) },
-      enabled =
-        state.isAccessibilityEnabled && state.hasApiKey && state.status !is AgentStatus.Running,
-      modifier = Modifier.fillMaxWidth(),
+  Scaffold(
+    bottomBar = {
+      NavigationBar(
+        modifier = Modifier.heightIn(min = 50.dp, max = 80.dp),
+        windowInsets = WindowInsets.navigationBars,
+      ) {
+        bottomNavItems.forEach { item ->
+          val selected = currentRoute.contains(item.route::class.qualifiedName.orEmpty())
+          NavigationBarItem(
+            modifier = Modifier.height(50.dp),
+            icon = { Text(text = item.icon, modifier = Modifier.size(24.dp)) },
+            label = { Text(item.label()) },
+            selected = selected,
+            onClick = {
+              navController.navigate(item.route) {
+                popUpTo(navController.graph.startDestinationId) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+              }
+            },
+            colors =
+              NavigationBarItemDefaults.colors(
+                selectedIconColor = MaterialTheme.colorScheme.primary,
+                unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                indicatorColor = Color.Transparent,
+              ),
+          )
+        }
+      }
+    }
+  ) { innerPadding ->
+    NavHost(
+      navController = navController,
+      startDestination = HomeDestination,
+      modifier = Modifier.padding(innerPadding),
     ) {
-      Text(stringResource(Res.string.btn_run_agent))
-    }
-
-    Spacer(Modifier.height(16.dp))
-    LogPanel(logs = state.logs, modifier = Modifier.weight(1f).fillMaxWidth())
-  }
-}
-
-@Composable
-private fun StatusBanner(state: AgentState) {
-  val (text, color) =
-    when (state.status) {
-      is AgentStatus.Idle ->
-        stringResource(Res.string.label_agent_idle) to MaterialTheme.colorScheme.onBackground
-      is AgentStatus.Running ->
-        stringResource(Res.string.label_agent_running) to MaterialTheme.colorScheme.primary
-      is AgentStatus.Success ->
-        stringResource(Res.string.label_agent_success) to MaterialTheme.colorScheme.tertiary
-      is AgentStatus.Error ->
-        stringResource(Res.string.label_agent_error, (state.status).message) to
-          MaterialTheme.colorScheme.error
-    }
-  Text(text = text, color = color, style = MaterialTheme.typography.titleMedium)
-}
-
-@Composable
-private fun LogPanel(logs: List<String>, modifier: Modifier = Modifier) {
-  val listState = rememberLazyListState()
-
-  LaunchedEffect(logs.size) { if (logs.isNotEmpty()) listState.animateScrollToItem(logs.size - 1) }
-
-  if (logs.isEmpty()) {
-    Text(
-      text = stringResource(Res.string.label_log_empty),
-      style = MaterialTheme.typography.bodySmall,
-      color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-  } else {
-    LazyColumn(state = listState, modifier = modifier) {
-      items(logs) { entry ->
-        Text(
-          text = entry,
-          style = MaterialTheme.typography.bodySmall,
-          modifier = Modifier.padding(vertical = 2.dp),
+      composable<HomeDestination> {
+        HomeScreen(
+          onOpenAccessibilitySettings = onOpenAccessibilitySettings,
+          onStartForegroundService = onStartForegroundService,
+          onStopForegroundService = onStopForegroundService,
+          isAccessibilityEnabled = isAccessibilityEnabled,
+        )
+      }
+      composable<TasksDestination> { TasksScreen() }
+      composable<SettingsDestination> {
+        SettingsScreen(
+          isAccessibilityEnabled = isAccessibilityEnabled,
+          onOpenAccessibilitySettings = onOpenAccessibilitySettings,
         )
       }
     }
