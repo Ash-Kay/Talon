@@ -143,6 +143,7 @@ RULES:
 - After launching an app, wait and then call get_screen.
 - If a click didn't change the screen, try scrolling to find the target element.
 - If you are stuck, try go_back and re-approach.
+- If you enter a text input field, press the UI submit button after typing to ensure the input is registered.
 - When the task is complete, respond with a summary of what you did."""
   }
 }
