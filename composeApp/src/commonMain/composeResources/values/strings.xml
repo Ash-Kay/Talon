@@ -40,6 +40,13 @@
     <string name="settings_llm_section">LLM Configuration</string>
     <string name="settings_accessibility_section">Permissions</string>
     <string name="tasks_empty">No tasks yet. Tasks will appear here once you start using Talon.</string>
+    <string name="tasks_title">Sessions</string>
+    <string name="session_status_running">Running</string>
+    <string name="session_status_success">Completed</string>
+    <string name="session_status_error">Failed</string>
+    <string name="session_status_cancelled">Cancelled</string>
+    <string name="session_detail_title">Session Detail</string>
+    <string name="session_detail_no_logs">No logs for this session</string>
     <string name="home_accessibility_card_title">Accessibility Required</string>
     <string name="home_accessibility_card_description">Talon needs accessibility access to interact with your device. Enable it to start using the agent.</string>
     <string name="label_logs_title">Activity Log</string>

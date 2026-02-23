@@ -12,7 +12,7 @@ sealed class AgentStatus {
 
 data class AgentState(
   val status: AgentStatus = AgentStatus.Idle,
-  val logs: List<LogEntry> = emptyList(),
+  val currentSessionId: Long? = null,
   val uiTreeSnapshot: String? = null,
   val isAccessibilityEnabled: Boolean = false,
   val selectedProvider: LlmProvider = LlmProvider.GOOGLE,

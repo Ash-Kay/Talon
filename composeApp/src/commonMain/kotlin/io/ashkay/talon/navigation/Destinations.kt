@@ -7,3 +7,5 @@ import kotlinx.serialization.Serializable
 @Serializable data object TasksDestination
 
 @Serializable data object SettingsDestination
+
+@Serializable data class SessionDetailDestination(val sessionId: Long)

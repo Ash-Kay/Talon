@@ -25,6 +25,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -40,8 +41,8 @@ import io.ashkay.talon.agent.AgentSideEffect
 import io.ashkay.talon.agent.AgentState
 import io.ashkay.talon.agent.AgentStatus
 import io.ashkay.talon.agent.AgentViewModel
-import io.ashkay.talon.agent.LogEntry
-import io.ashkay.talon.agent.LogStatus
+import io.ashkay.talon.data.db.LogEntryEntity
+import io.ashkay.talon.data.db.LogEntryStatus
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.orbitmvi.orbit.compose.collectAsState
@@ -96,6 +97,7 @@ private fun HomeContent(
   onOpenAccessibilitySettings: () -> Unit,
 ) {
   var goal by rememberSaveable { mutableStateOf("") }
+  val logs by viewModel.currentSessionLogs.collectAsState()
 
   Column(
     modifier =
@@ -131,7 +133,7 @@ private fun HomeContent(
 
     Spacer(Modifier.height(16.dp))
 
-    if (state.logs.isNotEmpty()) {
+    if (logs.isNotEmpty()) {
       Text(
         text = stringResource(Res.string.label_logs_title),
         style = MaterialTheme.typography.titleSmall,
@@ -140,7 +142,7 @@ private fun HomeContent(
       Spacer(Modifier.height(8.dp))
     }
 
-    TimelineLogPanel(logs = state.logs, modifier = Modifier.weight(1f).fillMaxWidth())
+    TimelineLogPanel(logs = logs, modifier = Modifier.weight(1f).fillMaxWidth())
   }
 }
 
@@ -197,7 +199,7 @@ private fun StatusBanner(state: AgentState) {
 }
 
 @Composable
-private fun TimelineLogPanel(logs: List<LogEntry>, modifier: Modifier = Modifier) {
+private fun TimelineLogPanel(logs: List<LogEntryEntity>, modifier: Modifier = Modifier) {
   val listState = rememberLazyListState()
 
   LaunchedEffect(logs.size) { if (logs.isNotEmpty()) listState.animateScrollToItem(logs.size - 1) }
@@ -220,13 +222,13 @@ private fun TimelineLogPanel(logs: List<LogEntry>, modifier: Modifier = Modifier
 }
 
 @Composable
-private fun TimelineItem(entry: LogEntry, isLast: Boolean) {
+private fun TimelineItem(entry: LogEntryEntity, isLast: Boolean) {
   val indicatorColor =
     when (entry.status) {
-      LogStatus.DONE -> Color(0xFF4CAF50)
-      LogStatus.ONGOING -> MaterialTheme.colorScheme.primary
-      LogStatus.ERROR -> MaterialTheme.colorScheme.error
-      LogStatus.INFO -> MaterialTheme.colorScheme.onSurfaceVariant
+      LogEntryStatus.COMPLETED -> Color(0xFF4CAF50)
+      LogEntryStatus.ONGOING -> MaterialTheme.colorScheme.primary
+      LogEntryStatus.ERROR -> MaterialTheme.colorScheme.error
+      else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
   val lineColor = MaterialTheme.colorScheme.outlineVariant
 
@@ -246,7 +248,7 @@ private fun TimelineItem(entry: LogEntry, isLast: Boolean) {
         }
 
         when (entry.status) {
-          LogStatus.DONE -> {
+          LogEntryStatus.COMPLETED -> {
             drawCircle(
               color = indicatorColor,
               radius = 8f,
@@ -254,7 +256,7 @@ private fun TimelineItem(entry: LogEntry, isLast: Boolean) {
               style = Fill,
             )
           }
-          LogStatus.ONGOING -> {
+          LogEntryStatus.ONGOING -> {
             drawCircle(
               color = indicatorColor,
               radius = 7f,
@@ -262,7 +264,7 @@ private fun TimelineItem(entry: LogEntry, isLast: Boolean) {
               style = Stroke(width = 2.5f),
             )
           }
-          LogStatus.ERROR -> {
+          LogEntryStatus.ERROR -> {
             drawLine(
               color = indicatorColor,
               start = Offset(centerX - 5f, indicatorY - 5f),
@@ -276,7 +278,7 @@ private fun TimelineItem(entry: LogEntry, isLast: Boolean) {
               strokeWidth = 2.5f,
             )
           }
-          LogStatus.INFO -> {
+          else -> {
             drawCircle(
               color = indicatorColor,
               radius = 4f,
@@ -293,8 +295,8 @@ private fun TimelineItem(entry: LogEntry, isLast: Boolean) {
       style = MaterialTheme.typography.bodySmall,
       color =
         when (entry.status) {
-          LogStatus.ERROR -> MaterialTheme.colorScheme.error
-          LogStatus.ONGOING -> MaterialTheme.colorScheme.primary
+          LogEntryStatus.ERROR -> MaterialTheme.colorScheme.error
+          LogEntryStatus.ONGOING -> MaterialTheme.colorScheme.primary
           else -> MaterialTheme.colorScheme.onSurface
         },
       modifier = Modifier.weight(1f).padding(top = 4.dp, bottom = 8.dp),

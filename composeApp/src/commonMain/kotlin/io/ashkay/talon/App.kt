@@ -24,13 +24,16 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import io.ashkay.talon.data.SettingsRepository
 import io.ashkay.talon.navigation.HomeDestination
+import io.ashkay.talon.navigation.SessionDetailDestination
 import io.ashkay.talon.navigation.SettingsDestination
 import io.ashkay.talon.navigation.TasksDestination
 import io.ashkay.talon.ui.home.HomeScreen
 import io.ashkay.talon.ui.onboarding.OnboardingScreen
 import io.ashkay.talon.ui.settings.SettingsScreen
+import io.ashkay.talon.ui.tasks.SessionDetailScreen
 import io.ashkay.talon.ui.tasks.TasksScreen
 import org.jetbrains.compose.resources.stringResource
 import org.koin.mp.KoinPlatform
@@ -139,7 +142,17 @@ private fun MainShell(
           isAccessibilityEnabled = isAccessibilityEnabled,
         )
       }
-      composable<TasksDestination> { TasksScreen() }
+      composable<TasksDestination> {
+        TasksScreen(
+          onSessionClick = { sessionId ->
+            navController.navigate(SessionDetailDestination(sessionId))
+          }
+        )
+      }
+      composable<SessionDetailDestination> { backStackEntry ->
+        val dest = backStackEntry.toRoute<SessionDetailDestination>()
+        SessionDetailScreen(sessionId = dest.sessionId)
+      }
       composable<SettingsDestination> {
         SettingsScreen(
           isAccessibilityEnabled = isAccessibilityEnabled,

@@ -12,16 +12,32 @@ import ai.koog.prompt.executor.llms.all.simpleOpenRouterExecutor
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.LLModel
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import io.ashkay.talon.agent.tools.TalonToolRegistry
 import io.ashkay.talon.data.SettingsRepository
+import io.ashkay.talon.data.db.LogEntryEntity
+import io.ashkay.talon.data.db.LogEntryStatus
+import io.ashkay.talon.data.db.LogType
+import io.ashkay.talon.data.db.SessionRepository
 import io.ashkay.talon.platform.DeviceController
 import io.github.aakira.napier.Napier
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import org.orbitmvi.orbit.ContainerHost
 import org.orbitmvi.orbit.viewmodel.container
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class AgentViewModel(
   private val deviceController: DeviceController,
   private val settingsRepository: SettingsRepository,
+  private val sessionRepository: SessionRepository,
 ) : ViewModel(), ContainerHost<AgentState, AgentSideEffect> {
 
   override val container =
@@ -32,6 +48,18 @@ class AgentViewModel(
           settingsRepository.getApiKey(settingsRepository.getSelectedProvider()).isNotBlank(),
       )
     )
+
+  val currentSessionLogs: StateFlow<List<LogEntryEntity>> =
+    container.stateFlow
+      .flatMapLatest { state ->
+        val sessionId = state.currentSessionId
+        if (sessionId != null) {
+          sessionRepository.getLogsBySessionIdFlow(sessionId)
+        } else {
+          flowOf(emptyList())
+        }
+      }
+      .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
   fun refreshAccessibilityStatus(enabled: Boolean) = intent {
     Napier.d(tag = TAG) { "Accessibility enabled: $enabled" }
@@ -67,15 +95,25 @@ class AgentViewModel(
       return@intent
     }
     Napier.i(tag = TAG) { "Running agent with goal: $goal, provider: ${provider.displayName}" }
-    reduce { state.copy(status = AgentStatus.Running, logs = emptyList()) }
+
+    val sessionId = sessionRepository.createSession(goal, provider.name)
+    reduce { state.copy(status = AgentStatus.Running, currentSessionId = sessionId) }
     postSideEffect(AgentSideEffect.StartForegroundService)
-    appendLog(LogEntry("Goal: $goal", LogStatus.INFO))
-    appendLog(LogEntry("Provider: ${provider.displayName}", LogStatus.INFO))
+
+    sessionRepository.appendLog(sessionId, "Goal: $goal", LogType.INFO)
+    sessionRepository.appendLog(sessionId, "Provider: ${provider.displayName}", LogType.INFO)
 
     try {
       val toolRegistry =
         TalonToolRegistry.create(deviceController) { toolName, detail ->
-          appendLog(LogEntry(formatToolLog(toolName, detail), LogStatus.DONE))
+          CoroutineScope(Dispatchers.Default).launch {
+            sessionRepository.appendLog(
+              sessionId = sessionId,
+              message = formatToolLog(toolName, detail),
+              type = LogType.TOOL_USE,
+              detail = detail,
+            )
+          }
         }
       val (executor, model) = createExecutorAndModel(provider, apiKey)
 
@@ -89,19 +127,33 @@ class AgentViewModel(
           maxIterations = MAX_AGENT_ITERATIONS,
         )
 
-      appendLog(LogEntry("Agent started...", LogStatus.ONGOING))
+      val agentLogId =
+        sessionRepository.appendLog(
+          sessionId = sessionId,
+          message = "Agent started...",
+          type = LogType.INFO,
+          status = LogEntryStatus.ONGOING,
+        )
       Napier.d(tag = TAG) { "Agent created with ${provider.displayName}" }
 
       val result = agent.run(goal)
 
       Napier.i(tag = TAG) { "Agent completed: $result" }
-      appendLog(LogEntry("Agent completed", LogStatus.DONE))
+      sessionRepository.updateLogStatus(agentLogId, LogEntryStatus.COMPLETED)
+      sessionRepository.appendLog(sessionId, "Agent completed", LogType.AI_REPLY)
+      sessionRepository.completeSession(sessionId, result)
       reduce { state.copy(status = AgentStatus.Success(result)) }
       postSideEffect(AgentSideEffect.StopForegroundService)
     } catch (e: Exception) {
       Napier.e(tag = TAG, throwable = e) { "Agent failed" }
+      sessionRepository.appendLog(
+        sessionId = sessionId,
+        message = "Error: ${e.message}",
+        type = LogType.ERROR,
+        status = LogEntryStatus.ERROR,
+      )
+      sessionRepository.failSession(sessionId, e.message)
       reduce { state.copy(status = AgentStatus.Error(e.message ?: "Unknown error")) }
-      appendLog(LogEntry("Error: ${e.message}", LogStatus.ERROR))
       postSideEffect(AgentSideEffect.StopForegroundService)
     }
   }
@@ -121,11 +173,6 @@ class AgentViewModel(
       LlmProvider.ANTHROPIC -> simpleAnthropicExecutor(apiKey) to AnthropicModels.Sonnet_3_5
       LlmProvider.OPEN_ROUTER -> simpleOpenRouterExecutor(apiKey) to OpenRouterModels.Gemini2_5Flash
     }
-
-  private fun appendLog(entry: LogEntry) = intent {
-    Napier.d(tag = TAG) { "Log: ${entry.message}" }
-    reduce { state.copy(logs = state.logs + entry) }
-  }
 
   private fun formatToolLog(toolName: String, detail: String): String =
     when (toolName) {
