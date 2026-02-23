@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -7,9 +8,12 @@ plugins {
   alias(libs.plugins.composeCompiler)
   alias(libs.plugins.kotlinSerialization)
   alias(libs.plugins.spotless)
+  alias(libs.plugins.room)
+  alias(libs.plugins.ksp)
 }
 
 kotlin {
+  @OptIn(ExperimentalKotlinGradlePluginApi::class) @Suppress("DEPRECATION")
   androidTarget { compilerOptions { jvmTarget.set(JvmTarget.JVM_11) } }
 
   listOf(iosArm64(), iosSimulatorArm64()).forEach { iosTarget ->
@@ -48,6 +52,9 @@ kotlin {
 
       implementation(libs.multiplatform.settings)
       implementation(libs.multiplatform.settings.no.arg)
+
+      implementation(libs.room.runtime)
+      implementation(libs.sqlite.bundled)
     }
     commonTest.dependencies { implementation(libs.kotlin.test) }
   }
@@ -79,7 +86,16 @@ android {
   }
 }
 
-dependencies { debugImplementation(libs.compose.uiTooling) }
+dependencies {
+  debugImplementation(libs.compose.uiTooling)
+  add("kspCommonMainMetadata", libs.room.compiler)
+  add("kspAndroid", libs.room.compiler)
+  //  add("kspIosX64", libs.room.compiler)
+  add("kspIosArm64", libs.room.compiler)
+  add("kspIosSimulatorArm64", libs.room.compiler)
+}
+
+room { schemaDirectory("$projectDir/schemas") }
 
 spotless {
   kotlin {
