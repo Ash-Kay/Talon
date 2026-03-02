@@ -3,6 +3,7 @@ package io.ashkay.talon
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -15,7 +16,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import io.ashkay.talon.accessibility.TalonAccessibilityService
+import io.ashkay.talon.platform.AndroidOverlayUiController
+import io.ashkay.talon.platform.OverlayUiController
 import io.ashkay.talon.service.AgentForegroundService
+import org.koin.mp.KoinPlatform
 
 class MainActivity : ComponentActivity() {
   private var isAccessibilityEnabled by mutableStateOf(false)
@@ -42,6 +46,12 @@ class MainActivity : ComponentActivity() {
         onRequestNotificationPermission = { requestNotificationPermission() },
         isAccessibilityEnabled = isAccessibilityEnabled,
         isNotificationGranted = isNotificationGranted,
+        onShowOverlay = { sessionId -> showOverlay(sessionId) },
+        onHideOverlay = { hideOverlay() },
+        onCancelAgent = { hideOverlay() },
+        registerCancelAgent = { cancelFn ->
+          AndroidOverlayUiController.stopAgentCallback = cancelFn
+        },
       )
     }
   }
@@ -50,6 +60,22 @@ class MainActivity : ComponentActivity() {
     super.onResume()
     isAccessibilityEnabled = TalonAccessibilityService.isRunning
     isNotificationGranted = checkNotificationPermission()
+  }
+
+  private fun showOverlay(sessionId: Long) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+      val intent =
+        Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
+      startActivity(intent)
+      return
+    }
+    val overlayController = KoinPlatform.getKoin().get<OverlayUiController>()
+    overlayController.show(sessionId)
+  }
+
+  private fun hideOverlay() {
+    val overlayController = KoinPlatform.getKoin().get<OverlayUiController>()
+    overlayController.hide()
   }
 
   private fun checkNotificationPermission(): Boolean =

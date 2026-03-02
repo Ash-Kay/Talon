@@ -24,6 +24,7 @@ import io.github.aakira.napier.Napier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flatMapLatest
@@ -39,6 +40,8 @@ class AgentViewModel(
   private val settingsRepository: SettingsRepository,
   private val sessionRepository: SessionRepository,
 ) : ViewModel(), ContainerHost<AgentState, AgentSideEffect> {
+
+  private var agentJob: Job? = null
 
   override val container =
     container<AgentState, AgentSideEffect>(
@@ -99,63 +102,93 @@ class AgentViewModel(
     val sessionId = sessionRepository.createSession(goal, provider.name)
     reduce { state.copy(status = AgentStatus.Running, currentSessionId = sessionId) }
     postSideEffect(AgentSideEffect.StartForegroundService)
+    postSideEffect(AgentSideEffect.ShowOverlay(sessionId))
 
     sessionRepository.appendLog(sessionId, "Goal: $goal", LogType.INFO)
     sessionRepository.appendLog(sessionId, "Provider: ${provider.displayName}", LogType.INFO)
 
-    try {
-      val toolRegistry =
-        TalonToolRegistry.create(deviceController) { toolName, detail ->
-          CoroutineScope(Dispatchers.Default).launch {
+    agentJob =
+      viewModelScope.launch {
+        try {
+          val toolRegistry =
+            TalonToolRegistry.create(deviceController) { toolName, detail ->
+              CoroutineScope(Dispatchers.Default).launch {
+                sessionRepository.appendLog(
+                  sessionId = sessionId,
+                  message = formatToolLog(toolName, detail),
+                  type = LogType.TOOL_USE,
+                  detail = detail,
+                )
+              }
+            }
+          val (executor, model) = createExecutorAndModel(provider, apiKey)
+
+          val agent =
+            AIAgent(
+              promptExecutor = executor,
+              llmModel = model,
+              systemPrompt = SYSTEM_PROMPT,
+              toolRegistry = toolRegistry,
+              strategy = talonAgentStrategy,
+              maxIterations = MAX_AGENT_ITERATIONS,
+            )
+
+          val agentLogId =
             sessionRepository.appendLog(
               sessionId = sessionId,
-              message = formatToolLog(toolName, detail),
-              type = LogType.TOOL_USE,
-              detail = detail,
+              message = "Agent started...",
+              type = LogType.INFO,
+              status = LogEntryStatus.ONGOING,
             )
+          Napier.d(tag = TAG) { "Agent created with ${provider.displayName}" }
+
+          val result = agent.run(goal)
+
+          Napier.i(tag = TAG) { "Agent completed: $result" }
+          sessionRepository.updateLogStatus(agentLogId, LogEntryStatus.COMPLETED)
+          sessionRepository.appendLog(sessionId, "Agent completed", LogType.AI_REPLY)
+          sessionRepository.completeSession(sessionId, result)
+          intent {
+            reduce { state.copy(status = AgentStatus.Success(result)) }
+            postSideEffect(AgentSideEffect.HideOverlay)
+            postSideEffect(AgentSideEffect.StopForegroundService)
+          }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+          Napier.i(tag = TAG) { "Agent cancelled" }
+          sessionRepository.appendLog(
+            sessionId = sessionId,
+            message = "Agent stopped by user",
+            type = LogType.INFO,
+            status = LogEntryStatus.COMPLETED,
+          )
+          sessionRepository.failSession(sessionId, "Cancelled by user")
+          intent {
+            reduce { state.copy(status = AgentStatus.Error("Cancelled by user")) }
+            postSideEffect(AgentSideEffect.HideOverlay)
+            postSideEffect(AgentSideEffect.StopForegroundService)
+          }
+        } catch (e: Exception) {
+          Napier.e(tag = TAG, throwable = e) { "Agent failed" }
+          sessionRepository.appendLog(
+            sessionId = sessionId,
+            message = "Error: ${e.message}",
+            type = LogType.ERROR,
+            status = LogEntryStatus.ERROR,
+          )
+          sessionRepository.failSession(sessionId, e.message)
+          intent {
+            reduce { state.copy(status = AgentStatus.Error(e.message ?: "Unknown error")) }
+            postSideEffect(AgentSideEffect.HideOverlay)
+            postSideEffect(AgentSideEffect.StopForegroundService)
           }
         }
-      val (executor, model) = createExecutorAndModel(provider, apiKey)
+      }
+  }
 
-      val agent =
-        AIAgent(
-          promptExecutor = executor,
-          llmModel = model,
-          systemPrompt = SYSTEM_PROMPT,
-          toolRegistry = toolRegistry,
-          strategy = talonAgentStrategy,
-          maxIterations = MAX_AGENT_ITERATIONS,
-        )
-
-      val agentLogId =
-        sessionRepository.appendLog(
-          sessionId = sessionId,
-          message = "Agent started...",
-          type = LogType.INFO,
-          status = LogEntryStatus.ONGOING,
-        )
-      Napier.d(tag = TAG) { "Agent created with ${provider.displayName}" }
-
-      val result = agent.run(goal)
-
-      Napier.i(tag = TAG) { "Agent completed: $result" }
-      sessionRepository.updateLogStatus(agentLogId, LogEntryStatus.COMPLETED)
-      sessionRepository.appendLog(sessionId, "Agent completed", LogType.AI_REPLY)
-      sessionRepository.completeSession(sessionId, result)
-      reduce { state.copy(status = AgentStatus.Success(result)) }
-      postSideEffect(AgentSideEffect.StopForegroundService)
-    } catch (e: Exception) {
-      Napier.e(tag = TAG, throwable = e) { "Agent failed" }
-      sessionRepository.appendLog(
-        sessionId = sessionId,
-        message = "Error: ${e.message}",
-        type = LogType.ERROR,
-        status = LogEntryStatus.ERROR,
-      )
-      sessionRepository.failSession(sessionId, e.message)
-      reduce { state.copy(status = AgentStatus.Error(e.message ?: "Unknown error")) }
-      postSideEffect(AgentSideEffect.StopForegroundService)
-    }
+  fun cancelAgent() = intent {
+    Napier.i(tag = TAG) { "Cancel agent requested" }
+    agentJob?.cancel()
+    agentJob = null
   }
 
   fun requestOpenAccessibilitySettings() = intent {

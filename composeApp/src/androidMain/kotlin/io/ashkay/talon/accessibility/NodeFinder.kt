@@ -5,6 +5,8 @@ import java.util.concurrent.atomic.AtomicInteger
 
 object NodeFinder {
 
+  private const val OWN_PACKAGE = "io.ashkay.talon"
+
   fun findByIndex(root: AccessibilityNodeInfo, targetIndex: Int): AccessibilityNodeInfo? =
     findRecursive(root, AtomicInteger(0), targetIndex)
 
@@ -31,6 +33,7 @@ object NodeFinder {
     counter: AtomicInteger,
     targetIndex: Int,
   ): AccessibilityNodeInfo? {
+    if (node.packageName?.toString() == OWN_PACKAGE) return null
     if (counter.getAndIncrement() == targetIndex) return node
     for (i in 0 until node.childCount) {
       val child = node.getChild(i) ?: continue

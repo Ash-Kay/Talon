@@ -66,9 +66,15 @@ fun HomeScreen(
   onStartForegroundService: () -> Unit,
   onStopForegroundService: () -> Unit,
   isAccessibilityEnabled: Boolean,
+  onShowOverlay: (Long) -> Unit = {},
+  onHideOverlay: () -> Unit = {},
+  onCancelAgent: () -> Unit = {},
+  registerCancelAgent: (() -> Unit) -> Unit = {},
   viewModel: AgentViewModel = koinViewModel(),
 ) {
   val state by viewModel.collectAsState()
+
+  LaunchedEffect(Unit) { registerCancelAgent { viewModel.cancelAgent() } }
 
   LaunchedEffect(isAccessibilityEnabled) {
     viewModel.refreshAccessibilityStatus(isAccessibilityEnabled)
@@ -80,6 +86,8 @@ fun HomeScreen(
       is AgentSideEffect.StartForegroundService -> onStartForegroundService()
       is AgentSideEffect.StopForegroundService -> onStopForegroundService()
       is AgentSideEffect.ShowToast -> {}
+      is AgentSideEffect.ShowOverlay -> onShowOverlay(sideEffect.sessionId)
+      is AgentSideEffect.HideOverlay -> onHideOverlay()
     }
   }
 

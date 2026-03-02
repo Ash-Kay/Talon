@@ -53,6 +53,10 @@ fun App(
   onRequestNotificationPermission: () -> Unit = {},
   isAccessibilityEnabled: Boolean = false,
   isNotificationGranted: Boolean = false,
+  onShowOverlay: (Long) -> Unit = {},
+  onHideOverlay: () -> Unit = {},
+  onCancelAgent: () -> Unit = {},
+  registerCancelAgent: (() -> Unit) -> Unit = {},
 ) {
   val settingsRepository = KoinPlatform.getKoin().get<SettingsRepository>()
   var onboardingCompleted by rememberSaveable {
@@ -66,6 +70,10 @@ fun App(
         onStartForegroundService = onStartForegroundService,
         onStopForegroundService = onStopForegroundService,
         isAccessibilityEnabled = isAccessibilityEnabled,
+        onShowOverlay = onShowOverlay,
+        onHideOverlay = onHideOverlay,
+        onCancelAgent = onCancelAgent,
+        registerCancelAgent = registerCancelAgent,
       )
     } else {
       OnboardingScreen(
@@ -86,6 +94,10 @@ private fun MainShell(
   onStartForegroundService: () -> Unit,
   onStopForegroundService: () -> Unit,
   isAccessibilityEnabled: Boolean,
+  onShowOverlay: (Long) -> Unit,
+  onHideOverlay: () -> Unit,
+  onCancelAgent: () -> Unit,
+  registerCancelAgent: (() -> Unit) -> Unit,
 ) {
   val navController = rememberNavController()
 
@@ -141,6 +153,10 @@ private fun MainShell(
           onStartForegroundService = onStartForegroundService,
           onStopForegroundService = onStopForegroundService,
           isAccessibilityEnabled = isAccessibilityEnabled,
+          onShowOverlay = onShowOverlay,
+          onHideOverlay = onHideOverlay,
+          onCancelAgent = onCancelAgent,
+          registerCancelAgent = registerCancelAgent,
         )
       }
       composable<TasksDestination> {

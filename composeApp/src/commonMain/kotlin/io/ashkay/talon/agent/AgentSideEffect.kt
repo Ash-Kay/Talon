@@ -8,4 +8,8 @@ sealed class AgentSideEffect {
   data object StartForegroundService : AgentSideEffect()
 
   data object StopForegroundService : AgentSideEffect()
+
+  data class ShowOverlay(val sessionId: Long) : AgentSideEffect()
+
+  data object HideOverlay : AgentSideEffect()
 }

@@ -8,16 +8,22 @@ import java.util.concurrent.atomic.AtomicInteger
 
 object UiTreeBuilder {
 
-  fun buildFrom(root: AccessibilityNodeInfo): UiNode = root.toUiNode(AtomicInteger(0))
+  private const val OWN_PACKAGE = "io.ashkay.talon"
 
-  private fun AccessibilityNodeInfo.toUiNode(counter: AtomicInteger): UiNode {
+  fun buildFrom(root: AccessibilityNodeInfo): UiNode? = root.toUiNode(AtomicInteger(0))
+
+  private fun AccessibilityNodeInfo.toUiNode(counter: AtomicInteger): UiNode? {
+    if (packageName?.toString() == OWN_PACKAGE) {
+      return null
+    }
     val nodeIndex = counter.getAndIncrement()
     val rect = Rect()
     getBoundsInScreen(rect)
     val kids = buildList {
       for (i in 0 until childCount) {
         val child = getChild(i) ?: continue
-        add(child.toUiNode(counter))
+        val childNode = child.toUiNode(counter) ?: continue
+        add(childNode)
       }
     }
     @Suppress("DEPRECATION")
