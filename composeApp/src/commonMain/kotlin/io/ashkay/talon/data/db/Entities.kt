@@ -51,6 +51,7 @@ object LogType {
   const val TOOL_USE = "tool_use"
   const val AI_REPLY = "ai_reply"
   const val ERROR = "error"
+  const val USER_MESSAGE = "user_message"
 }
 
 object LogEntryStatus {

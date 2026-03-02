@@ -106,7 +106,7 @@ private fun MainShell(
         windowInsets = WindowInsets.navigationBars,
       ) {
         bottomNavItems.forEach { item ->
-          val selected = currentRoute.contains(item.route::class.qualifiedName.orEmpty())
+          val selected = isTabSelected(item.route, currentRoute)
           NavigationBarItem(
             modifier = Modifier.height(50.dp),
             icon = { Text(text = item.icon, modifier = Modifier.size(24.dp)) },
@@ -152,7 +152,10 @@ private fun MainShell(
       }
       composable<SessionDetailDestination> { backStackEntry ->
         val dest = backStackEntry.toRoute<SessionDetailDestination>()
-        SessionDetailScreen(sessionId = dest.sessionId)
+        SessionDetailScreen(
+          sessionId = dest.sessionId,
+          onBackClick = { navController.popBackStack() },
+        )
       }
       composable<SettingsDestination> {
         SettingsScreen(
@@ -163,3 +166,14 @@ private fun MainShell(
     }
   }
 }
+
+private fun isTabSelected(route: Any, currentRoute: String): Boolean =
+  when (route) {
+    HomeDestination -> currentRoute == HomeDestination::class.qualifiedName
+    TasksDestination -> {
+      currentRoute == TasksDestination::class.qualifiedName ||
+        currentRoute.startsWith(SessionDetailDestination::class.qualifiedName.orEmpty())
+    }
+    SettingsDestination -> currentRoute == SettingsDestination::class.qualifiedName
+    else -> false
+  }

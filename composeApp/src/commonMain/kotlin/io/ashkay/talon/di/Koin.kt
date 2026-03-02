@@ -7,6 +7,7 @@ import io.ashkay.talon.data.SettingsRepository
 import io.ashkay.talon.data.db.SessionRepository
 import io.ashkay.talon.data.db.TalonDatabase
 import io.ashkay.talon.data.db.getDatabaseBuilder
+import io.ashkay.talon.ui.tasks.SessionDetailViewModel
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
@@ -25,7 +26,10 @@ val databaseModule = module {
   single { SessionRepository(get(), get()) }
 }
 
-val viewModelModule = module { viewModel { AgentViewModel(get(), get(), get()) } }
+val viewModelModule = module {
+  viewModel { AgentViewModel(get(), get(), get()) }
+  viewModel { params -> SessionDetailViewModel(get(), params.get()) }
+}
 
 fun getSharedModules() =
   listOf(deviceControllerModule(), settingsModule, databaseModule, viewModelModule)
