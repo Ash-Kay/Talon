@@ -49,10 +49,13 @@ import org.orbitmvi.orbit.compose.collectAsState
 import org.orbitmvi.orbit.compose.collectSideEffect
 import talon.composeapp.generated.resources.Res
 import talon.composeapp.generated.resources.btn_open_accessibility_settings
+import talon.composeapp.generated.resources.btn_open_overlay_settings
 import talon.composeapp.generated.resources.btn_run_agent
 import talon.composeapp.generated.resources.hint_enter_goal
 import talon.composeapp.generated.resources.home_accessibility_card_description
 import talon.composeapp.generated.resources.home_accessibility_card_title
+import talon.composeapp.generated.resources.home_overlay_card_description
+import talon.composeapp.generated.resources.home_overlay_card_title
 import talon.composeapp.generated.resources.label_agent_error
 import talon.composeapp.generated.resources.label_agent_idle
 import talon.composeapp.generated.resources.label_agent_running
@@ -63,9 +66,11 @@ import talon.composeapp.generated.resources.label_logs_title
 @Composable
 fun HomeScreen(
   onOpenAccessibilitySettings: () -> Unit,
+  onOpenOverlaySettings: () -> Unit = {},
   onStartForegroundService: () -> Unit,
   onStopForegroundService: () -> Unit,
   isAccessibilityEnabled: Boolean,
+  isOverlayEnabled: Boolean = false,
   onShowOverlay: (Long) -> Unit = {},
   onHideOverlay: () -> Unit = {},
   onCancelAgent: () -> Unit = {},
@@ -79,6 +84,8 @@ fun HomeScreen(
   LaunchedEffect(isAccessibilityEnabled) {
     viewModel.refreshAccessibilityStatus(isAccessibilityEnabled)
   }
+
+  LaunchedEffect(isOverlayEnabled) { viewModel.refreshOverlayStatus(isOverlayEnabled) }
 
   viewModel.collectSideEffect { sideEffect ->
     when (sideEffect) {
@@ -95,6 +102,7 @@ fun HomeScreen(
     state = state,
     viewModel = viewModel,
     onOpenAccessibilitySettings = onOpenAccessibilitySettings,
+    onOpenOverlaySettings = onOpenOverlaySettings,
   )
 }
 
@@ -103,6 +111,7 @@ private fun HomeContent(
   state: AgentState,
   viewModel: AgentViewModel,
   onOpenAccessibilitySettings: () -> Unit,
+  onOpenOverlaySettings: () -> Unit,
 ) {
   var goal by rememberSaveable { mutableStateOf("") }
   val logs by viewModel.currentSessionLogs.collectAsState()
@@ -113,6 +122,11 @@ private fun HomeContent(
   ) {
     if (!state.isAccessibilityEnabled) {
       AccessibilityErrorCard(onOpenAccessibilitySettings = onOpenAccessibilitySettings)
+      Spacer(Modifier.height(12.dp))
+    }
+
+    if (!state.isOverlayEnabled) {
+      OverlayPermissionCard(onOpenOverlaySettings = onOpenOverlaySettings)
       Spacer(Modifier.height(12.dp))
     }
 
@@ -133,7 +147,10 @@ private fun HomeContent(
     Button(
       onClick = { viewModel.runAgent(goal) },
       enabled =
-        state.isAccessibilityEnabled && state.hasApiKey && state.status !is AgentStatus.Running,
+        state.isAccessibilityEnabled &&
+          state.isOverlayEnabled &&
+          state.hasApiKey &&
+          state.status !is AgentStatus.Running,
       modifier = Modifier.fillMaxWidth(),
     ) {
       Text(stringResource(Res.string.btn_run_agent))
@@ -184,6 +201,41 @@ private fun AccessibilityErrorCard(onOpenAccessibilitySettings: () -> Unit) {
         modifier = Modifier.fillMaxWidth(),
       ) {
         Text(stringResource(Res.string.btn_open_accessibility_settings))
+      }
+    }
+  }
+}
+
+@Composable
+private fun OverlayPermissionCard(onOpenOverlaySettings: () -> Unit) {
+  Card(
+    modifier = Modifier.fillMaxWidth(),
+    shape = RoundedCornerShape(12.dp),
+    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+  ) {
+    Column(modifier = Modifier.padding(16.dp)) {
+      Text(
+        text = stringResource(Res.string.home_overlay_card_title),
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.onErrorContainer,
+      )
+      Spacer(Modifier.height(4.dp))
+      Text(
+        text = stringResource(Res.string.home_overlay_card_description),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f),
+      )
+      Spacer(Modifier.height(12.dp))
+      Button(
+        onClick = onOpenOverlaySettings,
+        colors =
+          ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.error,
+            contentColor = MaterialTheme.colorScheme.onError,
+          ),
+        modifier = Modifier.fillMaxWidth(),
+      ) {
+        Text(stringResource(Res.string.btn_open_overlay_settings))
       }
     }
   }

@@ -23,6 +23,7 @@ import org.koin.mp.KoinPlatform
 
 class MainActivity : ComponentActivity() {
   private var isAccessibilityEnabled by mutableStateOf(false)
+  private var isOverlayEnabled by mutableStateOf(false)
   private var isNotificationGranted by mutableStateOf(false)
 
   private val notificationPermissionLauncher =
@@ -35,16 +36,25 @@ class MainActivity : ComponentActivity() {
     super.onCreate(savedInstanceState)
 
     isNotificationGranted = checkNotificationPermission()
+    isOverlayEnabled = checkOverlayPermission()
 
     setContent {
       App(
         onOpenAccessibilitySettings = {
           startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         },
+        onOpenOverlaySettings = {
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            startActivity(
+              Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
+            )
+          }
+        },
         onStartForegroundService = { AgentForegroundService.start(this) },
         onStopForegroundService = { AgentForegroundService.stop(this) },
         onRequestNotificationPermission = { requestNotificationPermission() },
         isAccessibilityEnabled = isAccessibilityEnabled,
+        isOverlayEnabled = isOverlayEnabled,
         isNotificationGranted = isNotificationGranted,
         onShowOverlay = { sessionId -> showOverlay(sessionId) },
         onHideOverlay = { hideOverlay() },
@@ -59,14 +69,12 @@ class MainActivity : ComponentActivity() {
   override fun onResume() {
     super.onResume()
     isAccessibilityEnabled = TalonAccessibilityService.isRunning
+    isOverlayEnabled = checkOverlayPermission()
     isNotificationGranted = checkNotificationPermission()
   }
 
   private fun showOverlay(sessionId: Long) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
-      val intent =
-        Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
-      startActivity(intent)
       return
     }
     val overlayController = KoinPlatform.getKoin().get<OverlayUiController>()
@@ -93,4 +101,11 @@ class MainActivity : ComponentActivity() {
       isNotificationGranted = true
     }
   }
+
+  private fun checkOverlayPermission(): Boolean =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+      Settings.canDrawOverlays(this)
+    } else {
+      true
+    }
 }

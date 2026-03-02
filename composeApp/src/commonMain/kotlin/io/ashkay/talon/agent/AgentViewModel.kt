@@ -69,6 +69,11 @@ class AgentViewModel(
     reduce { state.copy(isAccessibilityEnabled = enabled) }
   }
 
+  fun refreshOverlayStatus(enabled: Boolean) = intent {
+    Napier.d(tag = TAG) { "Overlay enabled: $enabled" }
+    reduce { state.copy(isOverlayEnabled = enabled) }
+  }
+
   fun selectProvider(provider: LlmProvider) = intent {
     Napier.d(tag = TAG) { "Provider selected: ${provider.displayName}" }
     settingsRepository.setSelectedProvider(provider)

@@ -30,6 +30,10 @@
     <string name="onboarding_notification_title">Notification Permission</string>
     <string name="onboarding_notification_description">Allow notifications so Talon can keep you informed while running tasks in the background.</string>
     <string name="onboarding_notification_granted">Notification permission granted ✓</string>
+    <string name="onboarding_overlay_title">Overlay Permission</string>
+    <string name="onboarding_overlay_description">Talon needs to display over other apps to show you real-time agent progress while it works in the background.</string>
+    <string name="onboarding_overlay_enabled">Overlay permission granted ✓</string>
+    <string name="btn_enable_overlay">Grant Overlay Permission</string>
     <string name="onboarding_welcome_title">Talon</string>
     <string name="onboarding_welcome_subtitle">Your AI-powered mobile agent</string>
     <string name="onboarding_welcome_description">Talon can autonomously control your phone — open apps, tap buttons, type text, and complete tasks on your behalf using AI.</string>
@@ -57,6 +61,9 @@
     <string name="session_chat_failed">Failed</string>
     <string name="home_accessibility_card_title">Accessibility Required</string>
     <string name="home_accessibility_card_description">Talon needs accessibility access to interact with your device. Enable it to start using the agent.</string>
+    <string name="home_overlay_card_title">Overlay Permission Required</string>
+    <string name="home_overlay_card_description">Talon needs overlay permission to show agent progress while working in other apps.</string>
+    <string name="btn_open_overlay_settings">Grant Overlay Permission</string>
     <string name="label_logs_title">Activity Log</string>
 </resources>
 

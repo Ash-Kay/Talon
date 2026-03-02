@@ -12,6 +12,7 @@ import io.ashkay.talon.ui.onboarding.steps.AccessibilityStep
 import io.ashkay.talon.ui.onboarding.steps.ApiKeyStep
 import io.ashkay.talon.ui.onboarding.steps.LlmProviderStep
 import io.ashkay.talon.ui.onboarding.steps.NotificationStep
+import io.ashkay.talon.ui.onboarding.steps.OverlayStep
 import io.ashkay.talon.ui.onboarding.steps.WelcomeStep
 import kotlinx.serialization.Serializable
 
@@ -25,6 +26,8 @@ sealed class OnboardingDestination {
 
   @Serializable data object AccessibilityScreen : OnboardingDestination()
 
+  @Serializable data object OverlayScreen : OnboardingDestination()
+
   @Serializable data object NotificationScreen : OnboardingDestination()
 }
 
@@ -32,8 +35,10 @@ sealed class OnboardingDestination {
 fun OnboardingScreen(
   settingsRepository: SettingsRepository,
   isAccessibilityEnabled: Boolean,
+  isOverlayEnabled: Boolean,
   isNotificationGranted: Boolean,
   onOpenAccessibilitySettings: () -> Unit,
+  onOpenOverlaySettings: () -> Unit,
   onRequestNotificationPermission: () -> Unit,
   onFinish: () -> Unit,
 ) {
@@ -66,6 +71,14 @@ fun OnboardingScreen(
         AccessibilityStep(
           isAccessibilityEnabled = isAccessibilityEnabled,
           onOpenAccessibilitySettings = onOpenAccessibilitySettings,
+          onNext = { navController.navigate(OnboardingDestination.OverlayScreen) },
+          onBack = { navController.popBackStack() },
+        )
+      }
+      composable<OnboardingDestination.OverlayScreen> {
+        OverlayStep(
+          isOverlayEnabled = isOverlayEnabled,
+          onOpenOverlaySettings = onOpenOverlaySettings,
           onNext = { navController.navigate(OnboardingDestination.NotificationScreen) },
           onBack = { navController.popBackStack() },
         )

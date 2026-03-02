@@ -48,10 +48,12 @@ data class BottomNavItem(val route: Any, val label: @Composable () -> String, va
 @Composable
 fun App(
   onOpenAccessibilitySettings: () -> Unit = {},
+  onOpenOverlaySettings: () -> Unit = {},
   onStartForegroundService: () -> Unit = {},
   onStopForegroundService: () -> Unit = {},
   onRequestNotificationPermission: () -> Unit = {},
   isAccessibilityEnabled: Boolean = false,
+  isOverlayEnabled: Boolean = false,
   isNotificationGranted: Boolean = false,
   onShowOverlay: (Long) -> Unit = {},
   onHideOverlay: () -> Unit = {},
@@ -67,9 +69,11 @@ fun App(
     if (onboardingCompleted) {
       MainShell(
         onOpenAccessibilitySettings = onOpenAccessibilitySettings,
+        onOpenOverlaySettings = onOpenOverlaySettings,
         onStartForegroundService = onStartForegroundService,
         onStopForegroundService = onStopForegroundService,
         isAccessibilityEnabled = isAccessibilityEnabled,
+        isOverlayEnabled = isOverlayEnabled,
         onShowOverlay = onShowOverlay,
         onHideOverlay = onHideOverlay,
         onCancelAgent = onCancelAgent,
@@ -79,8 +83,10 @@ fun App(
       OnboardingScreen(
         settingsRepository = settingsRepository,
         isAccessibilityEnabled = isAccessibilityEnabled,
+        isOverlayEnabled = isOverlayEnabled,
         isNotificationGranted = isNotificationGranted,
         onOpenAccessibilitySettings = onOpenAccessibilitySettings,
+        onOpenOverlaySettings = onOpenOverlaySettings,
         onRequestNotificationPermission = onRequestNotificationPermission,
         onFinish = { onboardingCompleted = true },
       )
@@ -91,9 +97,11 @@ fun App(
 @Composable
 private fun MainShell(
   onOpenAccessibilitySettings: () -> Unit,
+  onOpenOverlaySettings: () -> Unit,
   onStartForegroundService: () -> Unit,
   onStopForegroundService: () -> Unit,
   isAccessibilityEnabled: Boolean,
+  isOverlayEnabled: Boolean,
   onShowOverlay: (Long) -> Unit,
   onHideOverlay: () -> Unit,
   onCancelAgent: () -> Unit,
@@ -150,9 +158,11 @@ private fun MainShell(
       composable<HomeDestination> {
         HomeScreen(
           onOpenAccessibilitySettings = onOpenAccessibilitySettings,
+          onOpenOverlaySettings = onOpenOverlaySettings,
           onStartForegroundService = onStartForegroundService,
           onStopForegroundService = onStopForegroundService,
           isAccessibilityEnabled = isAccessibilityEnabled,
+          isOverlayEnabled = isOverlayEnabled,
           onShowOverlay = onShowOverlay,
           onHideOverlay = onHideOverlay,
           onCancelAgent = onCancelAgent,

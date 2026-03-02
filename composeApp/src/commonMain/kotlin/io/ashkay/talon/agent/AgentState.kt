@@ -15,6 +15,7 @@ data class AgentState(
   val currentSessionId: Long? = null,
   val uiTreeSnapshot: String? = null,
   val isAccessibilityEnabled: Boolean = false,
+  val isOverlayEnabled: Boolean = false,
   val selectedProvider: LlmProvider = LlmProvider.GOOGLE,
   val hasApiKey: Boolean = false,
 )
