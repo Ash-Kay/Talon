@@ -149,7 +149,7 @@ private fun HomeContent(
       enabled =
         state.isAccessibilityEnabled &&
           state.isOverlayEnabled &&
-          state.hasApiKey &&
+          (state.hasApiKey || state.isDevMode) &&
           state.status !is AgentStatus.Running,
       modifier = Modifier.fillMaxWidth(),
     ) {

@@ -25,6 +25,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flatMapLatest
@@ -49,6 +50,7 @@ class AgentViewModel(
         selectedProvider = settingsRepository.getSelectedProvider(),
         hasApiKey =
           settingsRepository.getApiKey(settingsRepository.getSelectedProvider()).isNotBlank(),
+        isDevMode = USE_FAKE_AGENT,
       )
     )
 
@@ -96,6 +98,12 @@ class AgentViewModel(
       postSideEffect(AgentSideEffect.ShowToast("Please enter a goal"))
       return@intent
     }
+
+    if (USE_FAKE_AGENT) {
+      runFakeAgent(goal)
+      return@intent
+    }
+
     val provider = state.selectedProvider
     val apiKey = settingsRepository.getApiKey(provider)
     if (apiKey.isBlank()) {
@@ -190,6 +198,88 @@ class AgentViewModel(
       }
   }
 
+  private fun runFakeAgent(goal: String) = intent {
+    Napier.i(tag = TAG) { "[FAKE] Running fake agent with goal: $goal" }
+
+    val sessionId = sessionRepository.createSession(goal, "FAKE")
+    reduce { state.copy(status = AgentStatus.Running, currentSessionId = sessionId) }
+    postSideEffect(AgentSideEffect.StartForegroundService)
+    postSideEffect(AgentSideEffect.ShowOverlay(sessionId))
+
+    sessionRepository.appendLog(sessionId, "Goal: $goal", LogType.INFO)
+    sessionRepository.appendLog(sessionId, "Provider: Fake (dev mode)", LogType.INFO)
+
+    agentJob =
+      viewModelScope.launch {
+        try {
+          val agentLogId =
+            sessionRepository.appendLog(
+              sessionId = sessionId,
+              message = "Agent started...",
+              type = LogType.INFO,
+              status = LogEntryStatus.ONGOING,
+            )
+
+          delay(1000)
+          sessionRepository.appendLog(
+            sessionId,
+            "\uD83D\uDCF1 Fetched installed apps",
+            LogType.TOOL_USE,
+          )
+
+          delay(800)
+          sessionRepository.appendLog(
+            sessionId,
+            "\uD83D\uDE80 Launched app: com.android.chrome",
+            LogType.TOOL_USE,
+          )
+          deviceController.launchApp("com.android.chrome")
+
+          delay(1500)
+          sessionRepository.appendLog(sessionId, "\uD83D\uDCF7 Screen captured", LogType.TOOL_USE)
+          deviceController.getUiTree()
+
+          delay(1000)
+          sessionRepository.appendLog(
+            sessionId,
+            "\uD83D\uDC46 Clicked: Search bar",
+            LogType.TOOL_USE,
+          )
+
+          delay(800)
+          sessionRepository.appendLog(sessionId, "\u2328\uFE0F Typed: \"$goal\"", LogType.TOOL_USE)
+
+          delay(1200)
+          sessionRepository.appendLog(sessionId, "\uD83D\uDCF7 Screen captured", LogType.TOOL_USE)
+
+          delay(500)
+          sessionRepository.updateLogStatus(agentLogId, LogEntryStatus.COMPLETED)
+          sessionRepository.appendLog(sessionId, "Agent completed", LogType.AI_REPLY)
+          sessionRepository.completeSession(sessionId, "[FAKE] Opened Chrome successfully")
+
+          intent {
+            reduce { state.copy(status = AgentStatus.Success("[FAKE] Opened Chrome successfully")) }
+            postSideEffect(AgentSideEffect.HideOverlay)
+            postSideEffect(AgentSideEffect.StopForegroundService)
+          }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+          Napier.i(tag = TAG) { "[FAKE] Agent cancelled" }
+          sessionRepository.appendLog(
+            sessionId = sessionId,
+            message = "Agent stopped by user",
+            type = LogType.INFO,
+            status = LogEntryStatus.COMPLETED,
+          )
+          sessionRepository.failSession(sessionId, "Cancelled by user")
+          intent {
+            reduce { state.copy(status = AgentStatus.Error("Cancelled by user")) }
+            postSideEffect(AgentSideEffect.HideOverlay)
+            postSideEffect(AgentSideEffect.StopForegroundService)
+          }
+        }
+      }
+  }
+
   fun cancelAgent() = intent {
     Napier.i(tag = TAG) { "Cancel agent requested" }
     agentJob?.cancel()
@@ -227,6 +317,7 @@ class AgentViewModel(
   companion object {
     private const val TAG = "AgentViewModel"
     private const val MAX_AGENT_ITERATIONS = 100
+    private const val USE_FAKE_AGENT = false
 
     private const val SYSTEM_PROMPT =
       """You are Talon, an autonomous mobile device agent. You control an Android phone by using tools.
