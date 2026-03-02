@@ -9,7 +9,7 @@ import ai.koog.agents.core.dsl.extension.onAssistantMessage
 import ai.koog.agents.core.dsl.extension.onToolCall
 import ai.koog.prompt.params.LLMParams
 
-private const val MAX_TOKENS = 1600
+private const val MAX_TOKENS = 100000
 
 val talonAgentStrategy =
   strategy("TalonMobileAgent") {

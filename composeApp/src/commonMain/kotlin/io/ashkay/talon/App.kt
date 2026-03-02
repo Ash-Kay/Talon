@@ -30,6 +30,7 @@ import io.ashkay.talon.navigation.HomeDestination
 import io.ashkay.talon.navigation.SessionDetailDestination
 import io.ashkay.talon.navigation.SettingsDestination
 import io.ashkay.talon.navigation.TasksDestination
+import io.ashkay.talon.theme.AppTheme
 import io.ashkay.talon.ui.home.HomeScreen
 import io.ashkay.talon.ui.onboarding.OnboardingScreen
 import io.ashkay.talon.ui.settings.SettingsScreen
@@ -58,7 +59,7 @@ fun App(
     mutableStateOf(settingsRepository.isOnboardingCompleted())
   }
 
-  MaterialTheme {
+  AppTheme {
     if (onboardingCompleted) {
       MainShell(
         onOpenAccessibilitySettings = onOpenAccessibilitySettings,
