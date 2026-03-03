@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.RoomDatabaseConstructor
 
-@Database(entities = [AgentSessionEntity::class, LogEntryEntity::class], version = 1)
+@Database(entities = [AgentSessionEntity::class, LogEntryEntity::class], version = 2)
 @ConstructedBy(TalonDatabaseConstructor::class)
 abstract class TalonDatabase : RoomDatabase() {
   abstract fun sessionDao(): SessionDao

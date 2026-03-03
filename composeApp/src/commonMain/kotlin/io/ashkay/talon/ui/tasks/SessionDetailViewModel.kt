@@ -83,16 +83,13 @@ class SessionDetailViewModel(
     val provider = settingsRepository.getSelectedProvider()
     val currentSession = state.session
     val activeSessionId: Long
-    val previousSummary: String?
 
     if (currentSession == null) {
       activeSessionId = sessionRepository.createSession(message, provider.name)
-      previousSummary = null
       observeSessionById(activeSessionId)
       observeLogsById(activeSessionId)
     } else {
       activeSessionId = currentSession.id
-      previousSummary = currentSession.resultSummary
     }
 
     sessionRepository.appendLog(
@@ -128,12 +125,8 @@ class SessionDetailViewModel(
     postSideEffect(SessionDetailSideEffect.StartForegroundService)
     postSideEffect(SessionDetailSideEffect.ShowOverlay(activeSessionId))
 
-    runAgentUseCase.run(
-      scope = viewModelScope,
-      sessionId = activeSessionId,
-      goal = message,
-      previousSummary = previousSummary,
-    ) { status ->
+    runAgentUseCase.run(scope = viewModelScope, sessionId = activeSessionId, goal = message) {
+      status ->
       intent {
         when (status) {
           is AgentRunStatus.Started -> {

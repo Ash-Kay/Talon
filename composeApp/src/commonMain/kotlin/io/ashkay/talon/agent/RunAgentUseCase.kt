@@ -46,7 +46,6 @@ class RunAgentUseCase(
     scope: CoroutineScope,
     sessionId: Long,
     goal: String,
-    previousSummary: String? = null,
     onStatus: suspend (AgentRunStatus) -> Unit,
   ) {
     if (isRunning) {
@@ -73,7 +72,7 @@ class RunAgentUseCase(
           if (USE_FAKE_AGENT) {
             executeFakeAgent(sessionId, goal, onStatus)
           } else {
-            executeRealAgent(sessionId, goal, provider, apiKey, previousSummary, onStatus)
+            executeRealAgent(sessionId, goal, provider, apiKey, onStatus)
           }
         } catch (e: CancellationException) {
           Napier.i(tag = TAG) { "Agent cancelled" }
@@ -104,7 +103,6 @@ class RunAgentUseCase(
     goal: String,
     provider: LlmProvider,
     apiKey: String,
-    previousSummary: String?,
     onStatus: suspend (AgentRunStatus) -> Unit,
   ) {
     val toolRegistry =
@@ -120,18 +118,11 @@ class RunAgentUseCase(
       }
     val (executor, model) = createExecutorAndModel(provider, apiKey)
 
-    val systemPrompt =
-      if (previousSummary != null) {
-        "$SYSTEM_PROMPT\n\nPREVIOUS TASK CONTEXT:\nThe user previously asked you to do something and here is the summary of what happened:\n$previousSummary\n\nThe user is now giving you a follow-up instruction. Use the above context to understand what has already been done."
-      } else {
-        SYSTEM_PROMPT
-      }
-
     val agent =
       AIAgent(
         promptExecutor = executor,
         llmModel = model,
-        systemPrompt = systemPrompt,
+        systemPrompt = SYSTEM_PROMPT,
         toolRegistry = toolRegistry,
         strategy = talonAgentStrategy,
         maxIterations = MAX_AGENT_ITERATIONS,

@@ -15,27 +15,41 @@ class SessionRepository(private val sessionDao: SessionDao, private val logEntry
 
   suspend fun createSession(goal: String, provider: String): Long {
     val entity =
-      AgentSessionEntity(goal = goal, provider = provider, status = SessionStatus.RUNNING)
+      AgentSessionEntity(name = goal, provider = provider, status = SessionStatus.RUNNING)
     val id = sessionDao.insert(entity)
     Napier.d(tag = TAG) { "Session created: id=$id, goal=$goal" }
     return id
   }
 
   suspend fun completeSession(sessionId: Long, summary: String?) {
+    if (!summary.isNullOrBlank()) {
+      appendLog(
+        sessionId = sessionId,
+        message = summary,
+        type = LogType.SUMMARY,
+        status = LogEntryStatus.COMPLETED,
+      )
+    }
     sessionDao.completeSession(
       sessionId = sessionId,
       status = SessionStatus.SUCCESS,
-      summary = summary,
       completedAt = currentTimeMillis(),
     )
     Napier.d(tag = TAG) { "Session completed: id=$sessionId" }
   }
 
   suspend fun failSession(sessionId: Long, errorMessage: String?) {
+    if (!errorMessage.isNullOrBlank()) {
+      appendLog(
+        sessionId = sessionId,
+        message = errorMessage,
+        type = LogType.SUMMARY,
+        status = LogEntryStatus.ERROR,
+      )
+    }
     sessionDao.completeSession(
       sessionId = sessionId,
       status = SessionStatus.ERROR,
-      summary = errorMessage,
       completedAt = currentTimeMillis(),
     )
     Napier.d(tag = TAG) { "Session failed: id=$sessionId, error=$errorMessage" }

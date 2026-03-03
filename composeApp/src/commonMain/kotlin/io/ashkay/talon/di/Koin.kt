@@ -21,7 +21,12 @@ val settingsModule = module {
 }
 
 val databaseModule = module {
-  single<TalonDatabase> { getDatabaseBuilder().setDriver(BundledSQLiteDriver()).build() }
+  single<TalonDatabase> {
+    getDatabaseBuilder()
+      .fallbackToDestructiveMigration(dropAllTables = true)
+      .setDriver(BundledSQLiteDriver())
+      .build()
+  }
   single { get<TalonDatabase>().sessionDao() }
   single { get<TalonDatabase>().logEntryDao() }
   single { SessionRepository(get(), get()) }

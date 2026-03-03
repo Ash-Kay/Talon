@@ -8,10 +8,9 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "sessions")
 data class AgentSessionEntity(
   @PrimaryKey(autoGenerate = true) val id: Long = 0,
-  val goal: String,
+  val name: String,
   val provider: String,
   val status: String = SessionStatus.RUNNING,
-  val resultSummary: String? = null,
   val startedAt: Long = currentTimeMillis(),
   val completedAt: Long? = null,
 )
@@ -52,6 +51,7 @@ object LogType {
   const val AI_REPLY = "ai_reply"
   const val ERROR = "error"
   const val USER_MESSAGE = "user_message"
+  const val SUMMARY = "summary"
 }
 
 object LogEntryStatus {

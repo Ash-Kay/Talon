@@ -101,7 +101,7 @@ fun SessionDetailScreen(
   }
 
   val isNewSession = sessionId == SessionDetailViewModel.NEW_SESSION_ID && state.session == null
-  val chatTitle = if (isNewSession) "New Task" else state.session?.goal.orEmpty()
+  val chatTitle = if (isNewSession) "New Task" else state.session?.name.orEmpty()
   val chatSubtitle = if (isNewSession) "" else buildSubtitle(state.session?.status)
   val isRunning = state.isAgentRunning
   val hasPermissions = state.isAccessibilityEnabled && state.isOverlayEnabled
@@ -315,6 +315,7 @@ private fun ChatBubble(entry: LogEntryEntity) {
             LogType.AI_REPLY -> "\uD83E\uDD16 "
             LogType.ERROR -> "\u26A0\uFE0F "
             LogType.INFO -> "\u2139\uFE0F "
+            LogType.SUMMARY -> "\uD83D\uDCDD "
             else -> ""
           }
 

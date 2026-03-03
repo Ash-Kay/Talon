@@ -94,7 +94,7 @@ private fun SessionCard(session: AgentSessionEntity, onClick: () -> Unit) {
     Column(modifier = Modifier.padding(16.dp)) {
       Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
-          text = session.goal,
+          text = session.name,
           style = MaterialTheme.typography.titleSmall,
           color = MaterialTheme.colorScheme.onSurface,
           maxLines = 2,
@@ -116,16 +116,6 @@ private fun SessionCard(session: AgentSessionEntity, onClick: () -> Unit) {
           text = formatTimestamp(session.startedAt),
           style = MaterialTheme.typography.labelSmall,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-      }
-      if (!session.resultSummary.isNullOrBlank()) {
-        Spacer(Modifier.height(6.dp))
-        Text(
-          text = session.resultSummary,
-          style = MaterialTheme.typography.bodySmall,
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
-          maxLines = 2,
-          overflow = TextOverflow.Ellipsis,
         )
       }
     }

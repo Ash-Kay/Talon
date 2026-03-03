@@ -12,10 +12,8 @@ interface SessionDao {
 
   @Update suspend fun update(session: AgentSessionEntity)
 
-  @Query(
-    "UPDATE sessions SET status = :status, resultSummary = :summary, completedAt = :completedAt WHERE id = :sessionId"
-  )
-  suspend fun completeSession(sessionId: Long, status: String, summary: String?, completedAt: Long)
+  @Query("UPDATE sessions SET status = :status, completedAt = :completedAt WHERE id = :sessionId")
+  suspend fun completeSession(sessionId: Long, status: String, completedAt: Long)
 
   @Query("SELECT * FROM sessions ORDER BY startedAt DESC")
   fun getAllSessionsFlow(): Flow<List<AgentSessionEntity>>
