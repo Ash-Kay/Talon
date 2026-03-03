@@ -219,7 +219,7 @@ class RunAgentUseCase(
   companion object {
     private const val TAG = "RunAgentUseCase"
     private const val MAX_AGENT_ITERATIONS = 100
-    const val USE_FAKE_AGENT = false
+    const val USE_FAKE_AGENT = true
 
     const val SYSTEM_PROMPT =
       """You are OpenTalon, an elite autonomous AI agent operating an Android device. Your objective is to achieve the user's goal by navigating the device interface step-by-step. You do not have visual access; you rely entirely on a parsed JSON UI tree representing the active screen.

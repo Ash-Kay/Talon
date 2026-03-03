@@ -14,6 +14,17 @@
 
 ---
 
+## 📸 Screenshots
+
+|                   Agent Working                   |                  Task Completed                   |                      Settings                      |
+|:-------------------------------------------------:|:-------------------------------------------------:|:--------------------------------------------------:|
+| <img src="screenshots/working.png" width="250" /> | <img src="screenshots/success.png" width="250" /> | <img src="screenshots/settings.png" width="250" /> |
+|        *Agent executing a task on device*         |           *Task completed successfully*           |            *LLM provider configuration*            |
+
+<!-- TODO: Add more screenshots (Tasks List, Onboarding, Overlay, etc.) -->
+
+---
+
 ## ✨ What is Talon?
 
 Talon is an **autonomous AI agent** that lives on your phone. Instead of using screenshots or screen
