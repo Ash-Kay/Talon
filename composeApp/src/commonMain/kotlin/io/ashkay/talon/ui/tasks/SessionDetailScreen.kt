@@ -280,6 +280,7 @@ private fun ChatBubble(entry: LogEntryEntity) {
       isUserMessage -> MaterialTheme.colorScheme.primary
       entry.status == LogEntryStatus.ERROR -> MaterialTheme.colorScheme.errorContainer
       entry.status == LogEntryStatus.ONGOING -> MaterialTheme.colorScheme.secondaryContainer
+      entry.type == LogType.SUMMARY -> MaterialTheme.colorScheme.tertiaryContainer
       else -> MaterialTheme.colorScheme.surfaceContainerHigh
     }
   val textColor =
