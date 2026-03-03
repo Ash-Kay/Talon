@@ -1,5 +1,6 @@
 package io.ashkay.talon.di
 
+import io.ashkay.talon.agent.RunAgentUseCase
 import io.ashkay.talon.platform.AndroidDeviceController
 import io.ashkay.talon.platform.AndroidOverlayUiController
 import io.ashkay.talon.platform.DeviceController
@@ -14,7 +15,7 @@ actual fun deviceControllerModule(): Module = module {
     AndroidOverlayUiController(
       context = androidContext(),
       sessionRepository = get(),
-      onStopAgent = { AndroidOverlayUiController.stopAgentCallback?.invoke() },
+      onStopAgent = { get<RunAgentUseCase>().cancel() },
     )
   }
 }

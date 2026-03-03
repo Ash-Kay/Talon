@@ -3,6 +3,7 @@ package io.ashkay.talon.di
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.russhwolf.settings.Settings
 import io.ashkay.talon.agent.AgentViewModel
+import io.ashkay.talon.agent.RunAgentUseCase
 import io.ashkay.talon.data.SettingsRepository
 import io.ashkay.talon.data.db.SessionRepository
 import io.ashkay.talon.data.db.TalonDatabase
@@ -27,8 +28,9 @@ val databaseModule = module {
 }
 
 val viewModelModule = module {
+  single { RunAgentUseCase(get(), get(), get()) }
   viewModel { AgentViewModel(get(), get(), get()) }
-  viewModel { params -> SessionDetailViewModel(get(), params.get()) }
+  viewModel { params -> SessionDetailViewModel(get(), get(), get(), params.get()) }
 }
 
 fun getSharedModules() =

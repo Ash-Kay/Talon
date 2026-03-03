@@ -26,20 +26,18 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import io.ashkay.talon.data.SettingsRepository
-import io.ashkay.talon.navigation.HomeDestination
 import io.ashkay.talon.navigation.SessionDetailDestination
 import io.ashkay.talon.navigation.SettingsDestination
 import io.ashkay.talon.navigation.TasksDestination
 import io.ashkay.talon.theme.AppTheme
-import io.ashkay.talon.ui.home.HomeScreen
 import io.ashkay.talon.ui.onboarding.OnboardingScreen
 import io.ashkay.talon.ui.settings.SettingsScreen
 import io.ashkay.talon.ui.tasks.SessionDetailScreen
+import io.ashkay.talon.ui.tasks.SessionDetailViewModel
 import io.ashkay.talon.ui.tasks.TasksScreen
 import org.jetbrains.compose.resources.stringResource
 import org.koin.mp.KoinPlatform
 import talon.composeapp.generated.resources.Res
-import talon.composeapp.generated.resources.tab_home
 import talon.composeapp.generated.resources.tab_settings
 import talon.composeapp.generated.resources.tab_tasks
 
@@ -57,8 +55,6 @@ fun App(
   isNotificationGranted: Boolean = false,
   onShowOverlay: (Long) -> Unit = {},
   onHideOverlay: () -> Unit = {},
-  onCancelAgent: () -> Unit = {},
-  registerCancelAgent: (() -> Unit) -> Unit = {},
 ) {
   val settingsRepository = KoinPlatform.getKoin().get<SettingsRepository>()
   var onboardingCompleted by rememberSaveable {
@@ -69,15 +65,12 @@ fun App(
     if (onboardingCompleted) {
       MainShell(
         onOpenAccessibilitySettings = onOpenAccessibilitySettings,
-        onOpenOverlaySettings = onOpenOverlaySettings,
         onStartForegroundService = onStartForegroundService,
         onStopForegroundService = onStopForegroundService,
         isAccessibilityEnabled = isAccessibilityEnabled,
         isOverlayEnabled = isOverlayEnabled,
         onShowOverlay = onShowOverlay,
         onHideOverlay = onHideOverlay,
-        onCancelAgent = onCancelAgent,
-        registerCancelAgent = registerCancelAgent,
       )
     } else {
       OnboardingScreen(
@@ -97,23 +90,19 @@ fun App(
 @Composable
 private fun MainShell(
   onOpenAccessibilitySettings: () -> Unit,
-  onOpenOverlaySettings: () -> Unit,
   onStartForegroundService: () -> Unit,
   onStopForegroundService: () -> Unit,
   isAccessibilityEnabled: Boolean,
   isOverlayEnabled: Boolean,
   onShowOverlay: (Long) -> Unit,
   onHideOverlay: () -> Unit,
-  onCancelAgent: () -> Unit,
-  registerCancelAgent: (() -> Unit) -> Unit,
 ) {
   val navController = rememberNavController()
 
   val bottomNavItems =
     listOf(
-      BottomNavItem(HomeDestination, { stringResource(Res.string.tab_home) }, "🏠"),
-      BottomNavItem(TasksDestination, { stringResource(Res.string.tab_tasks) }, "📋"),
-      BottomNavItem(SettingsDestination, { stringResource(Res.string.tab_settings) }, "⚙"),
+      BottomNavItem(TasksDestination, { stringResource(Res.string.tab_tasks) }, "\uD83D\uDCCB"),
+      BottomNavItem(SettingsDestination, { stringResource(Res.string.tab_settings) }, "\u2699"),
     )
 
   val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -152,35 +141,30 @@ private fun MainShell(
   ) { innerPadding ->
     NavHost(
       navController = navController,
-      startDestination = HomeDestination,
+      startDestination = TasksDestination,
       modifier = Modifier.padding(innerPadding),
     ) {
-      composable<HomeDestination> {
-        HomeScreen(
-          onOpenAccessibilitySettings = onOpenAccessibilitySettings,
-          onOpenOverlaySettings = onOpenOverlaySettings,
-          onStartForegroundService = onStartForegroundService,
-          onStopForegroundService = onStopForegroundService,
-          isAccessibilityEnabled = isAccessibilityEnabled,
-          isOverlayEnabled = isOverlayEnabled,
-          onShowOverlay = onShowOverlay,
-          onHideOverlay = onHideOverlay,
-          onCancelAgent = onCancelAgent,
-          registerCancelAgent = registerCancelAgent,
-        )
-      }
       composable<TasksDestination> {
         TasksScreen(
           onSessionClick = { sessionId ->
             navController.navigate(SessionDetailDestination(sessionId))
-          }
+          },
+          onNewSession = {
+            navController.navigate(SessionDetailDestination(SessionDetailViewModel.NEW_SESSION_ID))
+          },
         )
       }
       composable<SessionDetailDestination> { backStackEntry ->
         val dest = backStackEntry.toRoute<SessionDetailDestination>()
         SessionDetailScreen(
           sessionId = dest.sessionId,
+          isAccessibilityEnabled = isAccessibilityEnabled,
+          isOverlayEnabled = isOverlayEnabled,
           onBackClick = { navController.popBackStack() },
+          onStartForegroundService = onStartForegroundService,
+          onStopForegroundService = onStopForegroundService,
+          onShowOverlay = onShowOverlay,
+          onHideOverlay = onHideOverlay,
         )
       }
       composable<SettingsDestination> {
@@ -195,7 +179,6 @@ private fun MainShell(
 
 private fun isTabSelected(route: Any, currentRoute: String): Boolean =
   when (route) {
-    HomeDestination -> currentRoute == HomeDestination::class.qualifiedName
     TasksDestination -> {
       currentRoute == TasksDestination::class.qualifiedName ||
         currentRoute.startsWith(SessionDetailDestination::class.qualifiedName.orEmpty())

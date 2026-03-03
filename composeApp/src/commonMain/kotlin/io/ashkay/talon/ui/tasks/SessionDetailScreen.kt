@@ -56,17 +56,29 @@ import talon.composeapp.generated.resources.Res
 import talon.composeapp.generated.resources.session_chat_completed
 import talon.composeapp.generated.resources.session_chat_failed
 import talon.composeapp.generated.resources.session_chat_hint
+import talon.composeapp.generated.resources.session_chat_hint_permissions
+import talon.composeapp.generated.resources.session_chat_new_task_hint
 import talon.composeapp.generated.resources.session_chat_typing
 import talon.composeapp.generated.resources.session_detail_no_logs
 
 @Composable
 fun SessionDetailScreen(
   sessionId: Long,
+  isAccessibilityEnabled: Boolean = false,
+  isOverlayEnabled: Boolean = false,
   onBackClick: () -> Unit = {},
+  onStartForegroundService: () -> Unit = {},
+  onStopForegroundService: () -> Unit = {},
+  onShowOverlay: (Long) -> Unit = {},
+  onHideOverlay: () -> Unit = {},
   viewModel: SessionDetailViewModel = koinViewModel { parametersOf(sessionId) },
 ) {
   val state by viewModel.collectAsState()
   val listState = rememberLazyListState()
+
+  LaunchedEffect(isAccessibilityEnabled, isOverlayEnabled) {
+    viewModel.refreshPermissions(isAccessibilityEnabled, isOverlayEnabled)
+  }
 
   viewModel.collectSideEffect { sideEffect ->
     when (sideEffect) {
@@ -75,6 +87,10 @@ fun SessionDetailScreen(
           listState.animateScrollToItem(state.logs.lastIndex)
         }
       }
+      is SessionDetailSideEffect.ShowOverlay -> onShowOverlay(sideEffect.sessionId)
+      SessionDetailSideEffect.HideOverlay -> onHideOverlay()
+      SessionDetailSideEffect.StartForegroundService -> onStartForegroundService()
+      SessionDetailSideEffect.StopForegroundService -> onStopForegroundService()
     }
   }
 
@@ -84,22 +100,38 @@ fun SessionDetailScreen(
     }
   }
 
+  val isNewSession = sessionId == SessionDetailViewModel.NEW_SESSION_ID && state.session == null
+  val chatTitle = if (isNewSession) "New Task" else state.session?.goal.orEmpty()
+  val chatSubtitle = if (isNewSession) "" else buildSubtitle(state.session?.status)
+  val isRunning = state.isAgentRunning
+  val hasPermissions = state.isAccessibilityEnabled && state.isOverlayEnabled
+
   Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
     ChatTopBar(
-      title = state.session?.goal.orEmpty(),
-      subtitle = buildSubtitle(state.session?.status),
-      isRunning = state.session?.status == SessionStatus.RUNNING,
+      title = chatTitle,
+      subtitle = chatSubtitle,
+      isRunning = isRunning,
       onBackClick = onBackClick,
     )
 
     Box(
       modifier = Modifier.weight(1f).fillMaxWidth().background(MaterialTheme.colorScheme.background)
     ) {
-      if (state.logs.isEmpty()) {
+      val hasContent = state.logs.isNotEmpty() || state.permissionMessages.isNotEmpty()
+
+      if (!hasContent && !isNewSession) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
           Text(
             text = stringResource(Res.string.session_detail_no_logs),
             style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
+        }
+      } else if (!hasContent && isNewSession) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+          Text(
+            text = stringResource(Res.string.session_chat_new_task_hint),
+            style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
         }
@@ -109,36 +141,49 @@ fun SessionDetailScreen(
           modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
           verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-          item { Spacer(Modifier.height(8.dp)) }
-          itemsIndexed(state.logs, key = { _, log -> log.id }) { index, entry ->
-            val showTimeSeparator =
-              shouldShowTimeSeparator(
-                current = entry,
-                previous = if (index > 0) state.logs[index - 1] else null,
-              )
-            if (showTimeSeparator) {
-              TimeSeparator(formatDateLabel(entry.createdAt))
+          if (state.permissionMessages.isNotEmpty()) {
+            item { Spacer(Modifier.height(8.dp)) }
+            items(count = state.permissionMessages.size, key = { "perm_$it" }) { index ->
+              PermissionWarningBubble(message = state.permissionMessages[index])
             }
-            ChatBubble(entry = entry)
+          }
+          if (state.logs.isNotEmpty()) {
+            item { Spacer(Modifier.height(8.dp)) }
+            itemsIndexed(state.logs, key = { _, log -> log.id }) { index, entry ->
+              val showTimeSeparator =
+                shouldShowTimeSeparator(
+                  current = entry,
+                  previous = if (index > 0) state.logs[index - 1] else null,
+                )
+              if (showTimeSeparator) {
+                TimeSeparator(formatDateLabel(entry.createdAt))
+              }
+              ChatBubble(entry = entry)
+            }
           }
           item { Spacer(Modifier.height(8.dp)) }
         }
       }
     }
 
-    val canSend =
-      state.session?.status == SessionStatus.SUCCESS || state.session?.status == SessionStatus.ERROR
+    val inputHint =
+      if (!hasPermissions) {
+        stringResource(Res.string.session_chat_hint_permissions)
+      } else if (isNewSession || state.session == null) {
+        stringResource(Res.string.session_chat_new_task_hint)
+      } else {
+        stringResource(Res.string.session_chat_hint)
+      }
 
-    if (
-      canSend && false
-    ) { // removed for now since we don't have a way to handle user messages in the agent flow yet
+    if (!isRunning) {
       ChatInputBar(
         value = state.userInput,
         onValueChange = { viewModel.onInputChanged(it) },
         onSend = { viewModel.sendMessage() },
-        isSending = state.isSending,
+        enabled = hasPermissions && !state.isAgentRunning,
+        hint = inputHint,
       )
-    } else if (state.session?.status == SessionStatus.RUNNING) {
+    } else {
       RunningIndicatorBar()
     }
   }
@@ -178,18 +223,20 @@ private fun ChatTopBar(
           maxLines = 1,
           overflow = TextOverflow.Ellipsis,
         )
-        val subtitleColor by
-          animateColorAsState(
-            targetValue =
-              if (isRunning) MaterialTheme.colorScheme.primary
-              else MaterialTheme.colorScheme.onSurfaceVariant
+        if (subtitle.isNotEmpty()) {
+          val subtitleColor by
+            animateColorAsState(
+              targetValue =
+                if (isRunning) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+          Text(
+            text = subtitle,
+            style = MaterialTheme.typography.labelSmall,
+            color = subtitleColor,
+            maxLines = 1,
           )
-        Text(
-          text = subtitle,
-          style = MaterialTheme.typography.labelSmall,
-          color = subtitleColor,
-          maxLines = 1,
-        )
+        }
       }
     }
   }
@@ -289,11 +336,33 @@ private fun ChatBubble(entry: LogEntryEntity) {
 }
 
 @Composable
+private fun PermissionWarningBubble(message: String) {
+  Row(
+    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+    horizontalArrangement = Arrangement.Start,
+  ) {
+    Surface(
+      shape = RoundedCornerShape(4.dp, 16.dp, 16.dp, 16.dp),
+      color = MaterialTheme.colorScheme.errorContainer,
+      modifier = Modifier.widthIn(max = 300.dp),
+    ) {
+      Text(
+        text = "\u26A0\uFE0F $message",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onErrorContainer,
+        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+      )
+    }
+  }
+}
+
+@Composable
 private fun ChatInputBar(
   value: String,
   onValueChange: (String) -> Unit,
   onSend: () -> Unit,
-  isSending: Boolean,
+  enabled: Boolean,
+  hint: String,
 ) {
   Surface(color = MaterialTheme.colorScheme.surfaceContainer, shadowElevation = 4.dp) {
     Row(
@@ -306,13 +375,9 @@ private fun ChatInputBar(
       TextField(
         value = value,
         onValueChange = onValueChange,
+        enabled = enabled,
         modifier = Modifier.weight(1f),
-        placeholder = {
-          Text(
-            text = stringResource(Res.string.session_chat_hint),
-            style = MaterialTheme.typography.bodyMedium,
-          )
-        },
+        placeholder = { Text(text = hint, style = MaterialTheme.typography.bodyMedium) },
         shape = RoundedCornerShape(24.dp),
         colors =
           TextFieldDefaults.colors(
@@ -321,13 +386,15 @@ private fun ChatInputBar(
             focusedIndicatorColor = Color.Transparent,
             unfocusedIndicatorColor = Color.Transparent,
             disabledIndicatorColor = Color.Transparent,
+            disabledContainerColor =
+              MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
           ),
         maxLines = 4,
       )
       Spacer(Modifier.width(8.dp))
       IconButton(
         onClick = onSend,
-        enabled = value.isNotBlank() && !isSending,
+        enabled = value.isNotBlank() && enabled,
         modifier = Modifier.size(48.dp).clip(CircleShape),
         colors =
           IconButtonDefaults.iconButtonColors(

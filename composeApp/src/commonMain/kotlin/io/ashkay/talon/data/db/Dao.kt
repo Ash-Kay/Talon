@@ -25,6 +25,9 @@ interface SessionDao {
 
   @Query("SELECT * FROM sessions WHERE id = :id")
   fun getSessionByIdFlow(id: Long): Flow<AgentSessionEntity?>
+
+  @Query("UPDATE sessions SET status = :status WHERE id = :sessionId")
+  suspend fun updateStatus(sessionId: Long, status: String)
 }
 
 @Dao

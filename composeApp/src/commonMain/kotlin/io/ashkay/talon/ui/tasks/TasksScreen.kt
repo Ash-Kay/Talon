@@ -12,9 +12,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,33 +41,45 @@ import talon.composeapp.generated.resources.tasks_empty
 import talon.composeapp.generated.resources.tasks_title
 
 @Composable
-fun TasksScreen(onSessionClick: (Long) -> Unit = {}) {
+fun TasksScreen(onSessionClick: (Long) -> Unit = {}, onNewSession: () -> Unit = {}) {
   val sessionRepository = KoinPlatform.getKoin().get<SessionRepository>()
   val sessions by sessionRepository.getAllSessionsFlow().collectAsState(initial = emptyList())
 
-  Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-    Text(
-      text = stringResource(Res.string.tasks_title),
-      style = MaterialTheme.typography.titleLarge,
-      color = MaterialTheme.colorScheme.onBackground,
-    )
-    Spacer(Modifier.height(12.dp))
+  Box(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+      Text(
+        text = stringResource(Res.string.tasks_title),
+        style = MaterialTheme.typography.titleLarge,
+        color = MaterialTheme.colorScheme.onBackground,
+      )
+      Spacer(Modifier.height(12.dp))
 
-    if (sessions.isEmpty()) {
-      Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(
-          text = stringResource(Res.string.tasks_empty),
-          style = MaterialTheme.typography.bodyLarge,
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-      }
-    } else {
-      LazyColumn(modifier = Modifier.fillMaxSize()) {
-        items(sessions, key = { it.id }) { session ->
-          SessionCard(session = session, onClick = { onSessionClick(session.id) })
-          Spacer(Modifier.height(8.dp))
+      if (sessions.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+          Text(
+            text = stringResource(Res.string.tasks_empty),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
+        }
+      } else {
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+          items(sessions, key = { it.id }) { session ->
+            SessionCard(session = session, onClick = { onSessionClick(session.id) })
+            Spacer(Modifier.height(8.dp))
+          }
         }
       }
+    }
+
+    FloatingActionButton(
+      onClick = onNewSession,
+      modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+      shape = CircleShape,
+      containerColor = MaterialTheme.colorScheme.primary,
+      contentColor = MaterialTheme.colorScheme.onPrimary,
+    ) {
+      Text(text = "\u2795", style = MaterialTheme.typography.titleMedium)
     }
   }
 }

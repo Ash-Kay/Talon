@@ -52,6 +52,8 @@
     <string name="session_detail_title">Session Detail</string>
     <string name="session_detail_no_logs">No messages yet</string>
     <string name="session_chat_hint">Continue this task…</string>
+    <string name="session_chat_new_task_hint">What would you like me to do?</string>
+    <string name="session_chat_hint_permissions">Grant permissions to start…</string>
     <string name="session_chat_send">Send</string>
     <string name="session_chat_today">Today</string>
     <string name="session_chat_yesterday">Yesterday</string>
@@ -59,6 +61,9 @@
     <string name="session_chat_online">Online</string>
     <string name="session_chat_completed">Completed</string>
     <string name="session_chat_failed">Failed</string>
+    <string name="session_chat_error_accessibility">Accessibility service is not enabled. Please enable it in device Settings to let Talon interact with your screen.</string>
+    <string name="session_chat_error_overlay">Overlay permission is not granted. Please enable "Display over other apps" in Settings so Talon can show progress.</string>
+    <string name="session_chat_error_api_key">No API key configured. Please set your API key in Settings before running a task.</string>
     <string name="home_accessibility_card_title">Accessibility Required</string>
     <string name="home_accessibility_card_description">Talon needs accessibility access to interact with your device. Enable it to start using the agent.</string>
     <string name="home_overlay_card_title">Overlay Permission Required</string>

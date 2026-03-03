@@ -16,7 +16,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import io.ashkay.talon.accessibility.TalonAccessibilityService
-import io.ashkay.talon.platform.AndroidOverlayUiController
 import io.ashkay.talon.platform.OverlayUiController
 import io.ashkay.talon.service.AgentForegroundService
 import org.koin.mp.KoinPlatform
@@ -58,10 +57,6 @@ class MainActivity : ComponentActivity() {
         isNotificationGranted = isNotificationGranted,
         onShowOverlay = { sessionId -> showOverlay(sessionId) },
         onHideOverlay = { hideOverlay() },
-        onCancelAgent = { hideOverlay() },
-        registerCancelAgent = { cancelFn ->
-          AndroidOverlayUiController.stopAgentCallback = cancelFn
-        },
       )
     }
   }

@@ -164,8 +164,6 @@ class AndroidOverlayUiController(
 
   companion object {
     private const val TAG = "OverlayUiCtrl"
-
-    @Volatile var stopAgentCallback: (() -> Unit)? = null
   }
 }
 

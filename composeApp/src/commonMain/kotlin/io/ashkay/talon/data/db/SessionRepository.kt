@@ -65,6 +65,11 @@ class SessionRepository(private val sessionDao: SessionDao, private val logEntry
     logEntryDao.updateStatus(logId, status)
   }
 
+  suspend fun updateSessionStatus(sessionId: Long, status: String) {
+    sessionDao.updateStatus(sessionId, status)
+    Napier.d(tag = TAG) { "Session status updated: id=$sessionId, status=$status" }
+  }
+
   companion object {
     private const val TAG = "SessionRepository"
   }
